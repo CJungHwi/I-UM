@@ -1,0 +1,53 @@
+import { CalendarDays, Grid3X3, ArrowLeftRight } from "lucide-react"
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+
+export default function SchedulePage() {
+    return (
+        <div className="relative h-page-container p-0 flex flex-col gap-[3px] overflow-hidden bg-background">
+            <Card className="h-full flex flex-col bg-card rounded-3xl border border-border shadow-card">
+                <CardHeader className="h-12 px-4 py-0 border-b border-border bg-muted/30 flex flex-row items-center justify-between space-y-0">
+                    <CardTitle className="text-lg font-bold flex items-center gap-2 leading-none">
+                        <CalendarDays className="h-5 w-5 text-primary" />
+                        수업 배정 및 시간표 관리
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="flex-1 min-h-0 flex flex-col gap-4 p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Card className="rounded-3xl border border-border shadow-card">
+                            <CardContent className="p-4 flex items-start gap-3">
+                                <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                                    <Grid3X3 className="h-5 w-5 text-primary" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold">시간표</p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        요일/시간별 수업 시간표를 편성합니다.
+                                    </p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card className="rounded-3xl border border-border shadow-card">
+                            <CardContent className="p-4 flex items-start gap-3">
+                                <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                                    <ArrowLeftRight className="h-5 w-5 text-primary" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold">수업 배정</p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        강사별 수업 배정 및 강의실 배치를 관리합니다.
+                                    </p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                    <div className="flex-1 flex items-center justify-center">
+                        <p className="text-sm text-muted-foreground">
+                            시간표 데이터를 연결하면 이곳에 주간 시간표가 표시됩니다.
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    )
+}

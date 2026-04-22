@@ -1,0 +1,167 @@
+---
+description: Shadcn UI 컴포넌트 활용 및 스타일 가이드
+globs: ["**/*.tsx", "**/*.ts"]
+alwaysApply: true
+---
+
+# Shadcn UI 스타일 가이드
+
+이 프로젝트는 **Shadcn UI**를 기반으로 UI를 구현합니다. 아래 **테마 팔레트**와 **형태·인터랙션** 규칙을 `globals.css` 토큰(`bg-background`, `bg-card`, `text-foreground`, `bg-primary` 등)과 함께 맞춥니다.
+
+---
+
+## 1. 테마 팔레트 (Color Logic)
+
+| 역할 | Light | Dark |
+|------|-------|------|
+| **Background** | `#FDFDFD` | `#1A1C2E` |
+| **Card / Surface** | `#FFFFFF` | `#252841` |
+| **Primary Blue** | `#82AAE3` | `#9DBFF2` |
+| **Point Yellow** (강조·포인트) | `#F9F54B` | `#FFFA82` |
+
+- **Primary / Point**는 버튼·배지·하이라이트 등에 사용하고, 본문 대비(가독성)를 유지할 것.
+
+---
+
+## 2. 형태 & 무드 (Shape & Vibe)
+
+- **모서리**: 기본값은 **`rounded-3xl`** — 카드, 다이얼로그, 입력 그룹, 패널 등 표면 컴포넌트에 아주 둥근 형태를 기본으로 한다.
+- **그림자·테두리**:
+  - **라이트**: 부드러운 **블루 톤 그림자** 사용 (예: `shadow-[0_8px_32px_rgba(130,170,227,0.18)]` 또는 유사한 `shadow-*` / 커스텀 shadow). 무거운 검정 그림자는 지양.
+  - **다크**: 그림자 대신 **`border border-[#343A50]`** 로 깊이·구분을 낸다. 카드·서브 패널 등 표면에 적용.
+
+---
+
+## 3. 타이포그래피 (Typography)
+
+- **본문·메인 글자색**
+  - 라이트: **`#2D3436`**
+  - 다크: **`#E0E0E0`**
+- Shadcn에서는 `text-foreground`, `text-muted-foreground` 등 토큰과 위 색이 일치하도록 테마 변수를 맞춘다.
+
+---
+
+## 4. 테마 전환 인터랙션 (Interaction)
+
+- 라이트/다크 전환 시 색이 자연스럽게 이어지도록, 테마 영향을 받는 래퍼·레이아웃·주요 표면에 **`transition-colors duration-500`** 을 적용한다.
+
+---
+
+## 5. 필수 사용 컴포넌트
+
+다음 UI 요소는 Shadcn 컴포넌트를 사용합니다.
+
+| UI 요소 | Shadcn 컴포넌트 | 위치 |
+|---------|----------------|------|
+| 버튼 | `Button` | `@/components/ui/button` |
+| 카드 | `Card`, `CardHeader`, `CardTitle`, `CardContent` | `@/components/ui/card` |
+| 입력창 | `Input` | `@/components/ui/input` |
+| 드롭다운 메뉴 | `DropdownMenu` | `@/components/ui/dropdown-menu` |
+| 다이얼로그 | `Dialog` | `@/components/ui/dialog` |
+| 시트 (모바일 메뉴) | `Sheet` | `@/components/ui/sheet` |
+| 테이블 | `Table` | `@/components/ui/table` |
+| 툴팁 | `Tooltip` | `@/components/ui/tooltip` |
+| 스크롤 영역 | `ScrollArea` | `@/components/ui/scroll-area` |
+| 아바타 | `Avatar` | `@/components/ui/avatar` |
+| 분리선 | `Separator` | `@/components/ui/separator` |
+
+---
+
+## 6. Card 스타일 가이드
+
+### 메인 카드 (Main Card)
+
+```tsx
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { FileText } from "lucide-react"
+
+<Card className="rounded-3xl border bg-card shadow-[0_8px_32px_rgba(130,170,227,0.18)] dark:border-[#343A50] dark:shadow-none">
+  <CardHeader>
+    <CardTitle>
+      <FileText className="h-5 w-5" />
+      카드 제목
+    </CardTitle>
+  </CardHeader>
+  <CardContent>
+    {/* 컨텐츠 */}
+  </CardContent>
+</Card>
+```
+
+**사양 요약**
+
+- **Card**: `h-full flex flex-col bg-card rounded-3xl border` + 라이트 블루 그림자 / 다크 `dark:border-[#343A50] dark:shadow-none`
+- **CardHeader**: `h-12 px-4 py-0 border-b bg-muted/30 flex flex-row items-center justify-between`
+- **CardTitle**: `text-lg font-bold flex items-center gap-2 leading-none`
+- **CardContent**: `flex-1 min-h-0 flex flex-col gap-[3px] p-4 overflow-auto`
+- **아이콘**: `h-5 w-5`
+
+### 서브 카드 (Sub Card)
+
+```tsx
+<Card className="flex flex-col overflow-hidden rounded-3xl border border-[#343637] dark:border-[#343A50] shadow-[0_4px_24px_rgba(130,170,227,0.12)] dark:shadow-none">
+  <CardHeader className="h-8 px-3 py-0">
+    <CardTitle className="text-xs font-bold">서브 카드 제목</CardTitle>
+  </CardHeader>
+  <CardContent className="p-2">{/* 컨텐츠 */}</CardContent>
+</Card>
+```
+
+---
+
+## 7. 페이지 컨테이너
+
+```tsx
+<div className="relative h-[calc(100vh-140px)] p-0 flex flex-col gap-[3px] overflow-hidden bg-background transition-colors duration-500">
+  <Card className="...">{/* 위 Card 사양 */}</Card>
+</div>
+```
+
+---
+
+## 8. 테두리 (일반 컴포넌트)
+
+Shadcn 컴포넌트 테두리는 기존과 호환되도록 다음을 참고한다.
+
+- **라이트**: `border-[#343637]` 또는 디자인에 맞는 연한 테두리
+- **다크**: 표면·카드 강조는 **`border-[#343A50]`** 우선 (섹션 2와 통일)
+
+---
+
+## 9. 금지 사항
+
+- 브라우저 기본 `alert()` → Toast/Sonner
+- 커스텀 스타일만의 버튼 → `Button`
+- 직접 만든 모달 → `Dialog`
+- 페이지네이션 → 무한 스크롤(프로젝트 정책 유지 시)
+
+---
+
+## 10. 접근성 (Accessibility)
+
+인터랙티브 요소에 `tabIndex`, `aria-label`, 키보드 핸들러(`onKeyDown` 등)를 필요 시 부여한다.
+
+---
+
+## 11. 컴포넌트 파일 구조
+
+- **페이지 전용**: 해당 라우트 폴더의 `components/`
+- **공통(2페이지 이상)**: `src/components/`
+- **UI(Shadcn)**: `src/components/ui/`
+
+### Import
+
+- 페이지별: `./components/...`
+- 공통·UI: `@/components/...`, `@/components/ui/...`
+
+### 예시 디렉터리
+
+```
+src/app/
+├── (dashboard)/
+│   ├── page.tsx
+│   ├── components/
+│   └── layout.tsx
+├── components/
+└── components/ui/
+```
