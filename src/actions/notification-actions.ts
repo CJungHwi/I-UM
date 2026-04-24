@@ -15,6 +15,7 @@ import {
     sendNotificationRaw,
 } from "@/lib/server/notifications"
 import type { ServerActionResult } from "@/types"
+import type { IumUserGrade, IumUserLevel } from "@/types/ium-user"
 import type {
     NotificationAudience,
     NotificationItem,
@@ -26,8 +27,8 @@ type SessionCtx =
     | ServerActionResult<never>
     | {
           userId: number
-          userGrade: string
-          userLevel: string
+          userGrade: IumUserGrade
+          userLevel: IumUserLevel
           userAcademyId: number | null
       }
 
