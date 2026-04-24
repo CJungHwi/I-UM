@@ -47,6 +47,7 @@ import {
     listConsultationLogs,
     setConsultationStatus,
 } from "@/actions/consultation-actions"
+import { LevelTestSection } from "./level-test-section"
 
 interface ConsultDetailPanelProps {
     consult: ConsultDetail | null
@@ -208,6 +209,9 @@ export function ConsultDetailPanel({
             <Tabs defaultValue="overview" className="flex-1 min-h-0 flex flex-col p-3 gap-2">
                 <TabsList className="w-full">
                     <TabsTrigger value="overview" className="flex-1">개요</TabsTrigger>
+                    <TabsTrigger value="levelTest" className="flex-1">
+                        레벨/반
+                    </TabsTrigger>
                     <TabsTrigger value="history" className="flex-1">
                         이력
                     </TabsTrigger>
@@ -293,6 +297,14 @@ export function ConsultDetailPanel({
                             </div>
                         </div>
                     </div>
+                </TabsContent>
+
+                <TabsContent value="levelTest" className="overflow-auto">
+                    <LevelTestSection
+                        consult={consult}
+                        isAdmin={isAdmin}
+                        onRefresh={onRefresh}
+                    />
                 </TabsContent>
 
                 <TabsContent value="history" className="overflow-hidden flex flex-col">
