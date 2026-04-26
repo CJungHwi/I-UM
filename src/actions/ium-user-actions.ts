@@ -10,8 +10,7 @@ import type { ServerActionResult } from "@/types"
 import type {
     IumAcademyOption,
     IumUserRow,
-    IumUserLevel,
-    IumUserGrade,
+    IumUserRole,
     IumApprovalStatus,
 } from "@/types/ium-user"
 
@@ -28,23 +27,29 @@ function mapUserRow(r: any): IumUserRow {
         email: r.email != null && r.email !== "" ? String(r.email) : null,
         academyId,
         academyName: rawAcademyName != null && rawAcademyName !== "" ? String(rawAcademyName) : null,
-        userLevel: (r.userLevel ?? r.user_level ?? "TEACHER") as IumUserLevel,
-        userGrade: (r.userGrade ?? r.user_grade ?? "USER") as IumUserGrade,
+        role: (r.role ?? "ACADEMY_MEMBER") as IumUserRole,
         approvalStatus: (r.approvalStatus ?? r.approval_status ?? "PENDING") as IumApprovalStatus,
         createdAt: String(r.createdAt ?? r.created_at ?? ""),
         updatedAt: String(r.updatedAt ?? r.updated_at ?? ""),
     }
 }
 
-async function requireAdmin(): Promise<ServerActionResult<never> | null> {
+async function getManageGate(): Promise<
+    | { userId: number; role: IumUserRole; academyId: number | null }
+    | ServerActionResult<never>
+> {
     const session = await auth()
-    if (!session?.user?.mbId) {
+    if (!session?.user?.mbId || !session.user.role) {
         return { success: false, error: "로그인이 필요합니다." }
     }
-    if (session.user.userGrade !== "ADMIN") {
+    if (!isSystemAdmin(session.user.role) && !isAcademyAdmin(session.user.role)) {
         return { success: false, error: "관리자만 접근할 수 있습니다." }
     }
-    return null
+    return {
+        userId: Number(session.user.id),
+        role: session.user.role,
+        academyId: session.user.academyId,
+    }
 }
 
 function mapAcademyOption(r: any): IumAcademyOption {
@@ -71,7 +76,6 @@ export async function registerIumUser(
     plainPassword: string,
     name: string,
     email: string | null,
-    userLevel: IumUserLevel,
     academyId: number,
 ): Promise<ServerActionResult<{ id: number }>> {
     const id = loginId.trim()
@@ -93,7 +97,6 @@ export async function registerIumUser(
             passwordHash,
             nm,
             email?.trim() ?? "",
-            userLevel,
             academyId,
         )
         const newId = results?.[0]?.id ?? results?.[0]?.f0 ?? 0
@@ -117,11 +120,15 @@ export async function registerIumUser(
 export async function listIumUsers(
     status?: IumApprovalStatus | null,
 ): Promise<ServerActionResult<IumUserRow[]>> {
-    const denied = await requireAdmin()
-    if (denied) return denied
+    const gate = await getManageGate()
+    if (!("userId" in gate)) return gate
 
     try {
-        const rows = await callProcedure<any>("sp_ium_list_users", status ?? null)
+        const rows = isSystemAdmin(gate.role)
+            ? await callProcedure<any>("sp_ium_list_users", status ?? null)
+            : gate.academyId != null
+              ? await callProcedure<any>("sp_ium_list_users_for_academy", gate.academyId, status ?? null)
+              : []
         return { success: true, data: rows.map(mapUserRow) }
     } catch (e) {
         console.error("listIumUsers:", e)
@@ -131,19 +138,15 @@ export async function listIumUsers(
 
 /** 알림 발송 시 대상 선택용 — 전역 관리자는 전체, 학원 관리자는 해당 학원만 */
 export async function listIumUsersForNotificationTargets(): Promise<ServerActionResult<IumUserRow[]>> {
-    const session = await auth()
-    if (!session?.user?.id || session.user.userGrade !== "ADMIN") {
-        return { success: false, error: "관리자만 접근할 수 있습니다." }
-    }
-    const aid = session.user.academyId
-    const ug = session.user.userGrade
+    const gate = await getManageGate()
+    if (!("userId" in gate)) return gate
     try {
-        if (isSystemAdmin(ug, aid)) {
+        if (isSystemAdmin(gate.role)) {
             const rows = await callProcedure<any>("sp_ium_list_users", "APPROVED")
             return { success: true, data: rows.map(mapUserRow) }
         }
-        if (isAcademyAdmin(ug, aid) && aid != null && aid > 0) {
-            const rows = await callProcedure<any>("sp_ium_list_users_for_academy", aid, "APPROVED")
+        if (isAcademyAdmin(gate.role) && gate.academyId != null && gate.academyId > 0) {
+            const rows = await callProcedure<any>("sp_ium_list_users_for_academy", gate.academyId, "APPROVED")
             return { success: true, data: rows.map(mapUserRow) }
         }
         return { success: false, error: "대상 목록을 불러올 수 없습니다." }
@@ -154,13 +157,18 @@ export async function listIumUsersForNotificationTargets(): Promise<ServerAction
 }
 
 export async function approveIumUser(userId: number): Promise<ServerActionResult> {
-    const denied = await requireAdmin()
-    if (denied) return denied
+    const gate = await getManageGate()
+    if (!("userId" in gate)) return gate
     try {
-        await callProcedure<any>("sp_ium_approve_user", userId)
-        const session = await auth()
-        const senderId = session?.user?.id != null ? Number(session.user.id) : null
         const targetAcademyId = await getAcademyIdForIumUser(userId)
+        if (
+            !isSystemAdmin(gate.role) &&
+            gate.academyId != null &&
+            targetAcademyId !== gate.academyId
+        ) {
+            return { success: false, error: "소속 학원 사용자만 처리할 수 있습니다." }
+        }
+        await callProcedure<any>("sp_ium_approve_user", userId)
         const n =
             targetAcademyId != null
                 ? await sendNotificationRaw(
@@ -170,7 +178,7 @@ export async function approveIumUser(userId: number): Promise<ServerActionResult
                       "USER",
                       {
                           targetUserId: userId,
-                          senderUserId: senderId,
+                          senderUserId: gate.userId,
                           templateId: null,
                           academyId: targetAcademyId,
                       },
@@ -182,7 +190,7 @@ export async function approveIumUser(userId: number): Promise<ServerActionResult
                       "USER",
                       {
                           targetUserId: userId,
-                          senderUserId: senderId,
+                          senderUserId: gate.userId,
                           templateId: null,
                           academyId: null,
                       },
@@ -198,9 +206,17 @@ export async function approveIumUser(userId: number): Promise<ServerActionResult
 }
 
 export async function rejectIumUser(userId: number): Promise<ServerActionResult> {
-    const denied = await requireAdmin()
-    if (denied) return denied
+    const gate = await getManageGate()
+    if (!("userId" in gate)) return gate
     try {
+        const targetAcademyId = await getAcademyIdForIumUser(userId)
+        if (
+            !isSystemAdmin(gate.role) &&
+            gate.academyId != null &&
+            targetAcademyId !== gate.academyId
+        ) {
+            return { success: false, error: "소속 학원 사용자만 처리할 수 있습니다." }
+        }
         await callProcedure<any>("sp_ium_reject_user", userId)
         return { success: true }
     } catch (e) {
@@ -209,32 +225,32 @@ export async function rejectIumUser(userId: number): Promise<ServerActionResult>
     }
 }
 
-export async function setIumUserGrade(
+export async function setIumUserRole(
     userId: number,
-    grade: IumUserGrade,
+    role: IumUserRole,
 ): Promise<ServerActionResult> {
-    const denied = await requireAdmin()
-    if (denied) return denied
-    try {
-        await callProcedure<any>("sp_ium_set_user_grade", userId, grade)
-        return { success: true }
-    } catch (e) {
-        console.error("setIumUserGrade:", e)
-        return { success: false, error: "등급 변경에 실패했습니다." }
+    const gate = await getManageGate()
+    if (!("userId" in gate)) return gate
+    if (role === "SYSTEM_ADMIN" && !isSystemAdmin(gate.role)) {
+        return { success: false, error: "시스템 관리자는 전역 관리자만 지정할 수 있습니다." }
     }
-}
-
-export async function setIumUserLevel(
-    userId: number,
-    level: IumUserLevel,
-): Promise<ServerActionResult> {
-    const denied = await requireAdmin()
-    if (denied) return denied
     try {
-        await callProcedure<any>("sp_ium_set_user_level", userId, level)
+        const targetAcademyId = await getAcademyIdForIumUser(userId)
+        if (
+            !isSystemAdmin(gate.role) &&
+            gate.academyId != null &&
+            targetAcademyId !== gate.academyId
+        ) {
+            return { success: false, error: "소속 학원 사용자만 변경할 수 있습니다." }
+        }
+        await callProcedure<any>("sp_ium_set_user_role", userId, role)
         return { success: true }
-    } catch (e) {
-        console.error("setIumUserLevel:", e)
-        return { success: false, error: "역할 변경에 실패했습니다." }
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e)
+        if (msg.includes("INVALID_ROLE")) {
+            return { success: false, error: "유효하지 않은 사용자 레벨입니다." }
+        }
+        console.error("setIumUserRole:", e)
+        return { success: false, error: "사용자 레벨 변경에 실패했습니다." }
     }
 }

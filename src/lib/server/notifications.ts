@@ -133,16 +133,14 @@ export async function listTemplates(): Promise<NotificationTemplateRow[]> {
 
 export async function listNotificationsForUser(
     userId: number,
-    userGrade: string,
-    userLevel: string,
+    role: string,
     userAcademyId: number | null,
     limit = 40,
 ): Promise<NotificationItem[]> {
     const rows = await callProcedure<Record<string, unknown>>(
         "sp_notif_list_for_user",
         userId,
-        userGrade,
-        userLevel,
+        role,
         userAcademyId,
         limit,
     )
@@ -151,15 +149,13 @@ export async function listNotificationsForUser(
 
 export async function getUnreadCountForUser(
     userId: number,
-    userGrade: string,
-    userLevel: string,
+    role: string,
     userAcademyId: number | null,
 ): Promise<number> {
     const rows = await callProcedure<Record<string, unknown>>(
         "sp_notif_unread_count",
         userId,
-        userGrade,
-        userLevel,
+        role,
         userAcademyId,
     )
     return Number(rows[0]?.cnt ?? rows[0]?.f0 ?? 0)
@@ -171,11 +167,10 @@ export async function markNotificationRead(notificationId: number, userId: numbe
 
 export async function markAllNotificationsRead(
     userId: number,
-    userGrade: string,
-    userLevel: string,
+    role: string,
     userAcademyId: number | null,
 ): Promise<void> {
-    await callProcedure("sp_notif_mark_all_read", userId, userGrade, userLevel, userAcademyId)
+    await callProcedure("sp_notif_mark_all_read", userId, role, userAcademyId)
 }
 
 export async function saveTemplate(
@@ -198,5 +193,5 @@ export function isSystemAudience(a: string): a is SystemNotificationAudience {
 }
 
 export function isAcademyAudience(a: string): a is AcademyNotificationAudience {
-    return a === "ALL" || a === "ADMINS" || a === "DIRECTORS" || a === "TEACHERS" || a === "USER"
+    return a === "ALL" || a === "ADMINS" || a === "MEMBERS" || a === "USER"
 }

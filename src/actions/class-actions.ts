@@ -4,7 +4,7 @@ import { callProcedure } from "@/lib/db"
 import { auth } from "@/auth"
 import { isAcademyAdmin, isSystemAdmin } from "@/lib/ium-user"
 import type { ServerActionResult } from "@/types"
-import type { IumUserGrade } from "@/types/ium-user"
+import type { IumUserRole } from "@/types/ium-user"
 import type {
     ClassMatchRow,
     ClassRow,
@@ -17,7 +17,7 @@ type SessionCtx =
     | ServerActionResult<never>
     | {
           userId: number
-          userGrade: IumUserGrade
+          role: IumUserRole
           userAcademyId: number | null
       }
 
@@ -30,7 +30,7 @@ async function requireSession(): Promise<SessionCtx> {
     const userAcademyId = rawAid != null && rawAid > 0 ? Number(rawAid) : null
     return {
         userId: Number(session.user.id),
-        userGrade: session.user.userGrade ?? "USER",
+        role: session.user.role ?? "ACADEMY_MEMBER",
         userAcademyId,
     }
 }
@@ -38,7 +38,7 @@ async function requireSession(): Promise<SessionCtx> {
 async function requireAdmin(): Promise<SessionCtx> {
     const s = await requireSession()
     if (!("userId" in s)) return s
-    if (s.userGrade !== "ADMIN") {
+    if (!isSystemAdmin(s.role) && !isAcademyAdmin(s.role)) {
         return { success: false, error: "관리자만 접근할 수 있습니다." }
     }
     return s
@@ -135,15 +135,15 @@ export async function listClasses(
         const subj = (subject ?? "").trim() || null
         const kw = (keyword ?? "").trim() || null
         let rows: Record<string, unknown>[]
-        if (isSystemAdmin(s.userGrade, s.userAcademyId)) {
+        if (isSystemAdmin(s.role)) {
             rows = await callProcedure<Record<string, unknown>>(
                 "sp_ium_class_list",
                 subj,
                 kw,
             )
         } else if (
-            isAcademyAdmin(s.userGrade, s.userAcademyId) ||
-            (s.userGrade === "USER" && s.userAcademyId != null)
+            isAcademyAdmin(s.role) ||
+            (s.role === "ACADEMY_MEMBER" && s.userAcademyId != null)
         ) {
             rows = await callProcedure<Record<string, unknown>>(
                 "sp_ium_class_list_for_academy",
@@ -176,7 +176,7 @@ export async function getClassDetail(
         }
         const r = mapRow(rows[0])
         if (
-            !isSystemAdmin(s.userGrade, s.userAcademyId) &&
+            !isSystemAdmin(s.role) &&
             s.userAcademyId != null &&
             r.academyId !== s.userAcademyId
         ) {
@@ -198,7 +198,7 @@ export async function upsertClass(
     const academyId = toIntOrNull(input.academyId)
     if (!academyId) return { success: false, error: "소속 학원을 선택하세요." }
     if (
-        !isSystemAdmin(gate.userGrade, gate.userAcademyId) &&
+        !isSystemAdmin(gate.role) &&
         gate.userAcademyId != null &&
         academyId !== gate.userAcademyId
     ) {

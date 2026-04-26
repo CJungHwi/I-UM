@@ -263,6 +263,12 @@ CREATE PROCEDURE sp_ium_class_match(
     IN p_limit      INT
 )
 BEGIN
+    -- LIMIT 는 SP 내 일반 SELECT 에서 표현식(IFNULL 등)을 허용하지 않는 경우가 많음 → 로컬 변수 사용
+    DECLARE v_lim INT UNSIGNED DEFAULT 5;
+    IF p_limit IS NOT NULL AND p_limit > 0 THEN
+        SET v_lim = CAST(p_limit AS UNSIGNED);
+    END IF;
+
     SELECT
         c.id,
         c.name,
@@ -283,9 +289,10 @@ BEGIN
       AND c.is_active = 'Y'
       AND c.academy_id = p_academy_id
       AND (p_subject IS NULL OR p_subject = '' OR c.subject = p_subject)
-    HAVING enrolledCount < c.capacity
+      AND (SELECT COUNT(*) FROM ium_class_enrollment e2
+           WHERE e2.class_id = c.id AND e2.status = 'ACTIVE') < c.capacity
     ORDER BY matchScore DESC, c.name
-    LIMIT IFNULL(p_limit, 5);
+    LIMIT v_lim;
 END$$
 
 -- 반 소속 학생 목록

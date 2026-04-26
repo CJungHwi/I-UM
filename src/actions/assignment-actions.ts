@@ -2,9 +2,9 @@
 
 import { callProcedure } from "@/lib/db"
 import { auth } from "@/auth"
-import { isSystemAdmin } from "@/lib/ium-user"
+import { isAcademyAdmin, isSystemAdmin } from "@/lib/ium-user"
 import type { ServerActionResult } from "@/types"
-import type { IumUserGrade } from "@/types/ium-user"
+import type { IumUserRole } from "@/types/ium-user"
 import type {
     AssignmentDetail,
     AssignmentRow,
@@ -18,7 +18,7 @@ type SessionCtx =
     | ServerActionResult<never>
     | {
           userId: number
-          userGrade: IumUserGrade
+          role: IumUserRole
           userAcademyId: number | null
       }
 
@@ -31,7 +31,7 @@ async function requireSession(): Promise<SessionCtx> {
     const userAcademyId = rawAid != null && rawAid > 0 ? Number(rawAid) : null
     return {
         userId: Number(session.user.id),
-        userGrade: session.user.userGrade ?? "USER",
+        role: session.user.role ?? "ACADEMY_MEMBER",
         userAcademyId,
     }
 }
@@ -39,7 +39,7 @@ async function requireSession(): Promise<SessionCtx> {
 async function requireAdmin(): Promise<SessionCtx> {
     const s = await requireSession()
     if (!("userId" in s)) return s
-    if (s.userGrade !== "ADMIN") {
+    if (!isSystemAdmin(s.role) && !isAcademyAdmin(s.role)) {
         return { success: false, error: "관리자만 접근할 수 있습니다." }
     }
     return s
@@ -160,7 +160,7 @@ export async function getAssignmentDetail(
         if (!rows.length) return { success: false, error: "과제를 찾을 수 없습니다." }
         const d = mapDetail(rows[0])
         if (
-            !isSystemAdmin(s.userGrade, s.userAcademyId) &&
+            !isSystemAdmin(s.role) &&
             s.userAcademyId != null &&
             d.academyId !== s.userAcademyId
         ) {

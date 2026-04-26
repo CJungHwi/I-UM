@@ -17,11 +17,10 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { listIumAcademiesForRegister, registerIumUser } from "@/actions/ium-user-actions"
-import type { IumAcademyOption, IumUserLevel } from "@/types/ium-user"
+import type { IumAcademyOption } from "@/types/ium-user"
 
 export function RegisterForm({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
     const [isLoading, setIsLoading] = React.useState(false)
-    const [userLevel, setUserLevel] = React.useState<IumUserLevel>("TEACHER")
     const [academies, setAcademies] = React.useState<IumAcademyOption[]>([])
     const [academyId, setAcademyId] = React.useState<string>("")
     const router = useRouter()
@@ -71,7 +70,6 @@ export function RegisterForm({ className, ...props }: React.HTMLAttributes<HTMLD
                 password,
                 name,
                 email || null,
-                userLevel,
                 selectedAcademyId,
             )
             if (res.success) {
@@ -156,25 +154,9 @@ export function RegisterForm({ className, ...props }: React.HTMLAttributes<HTMLD
                         </p>
                     )}
                 </div>
-                <div className="grid gap-2">
-                    <Label>역할 (원장 / 교사)</Label>
-                    <Select
-                        value={userLevel}
-                        onValueChange={(v) => setUserLevel(v as IumUserLevel)}
-                        disabled={isLoading}
-                    >
-                        <SelectTrigger className="bg-card w-full">
-                            <SelectValue placeholder="역할 선택" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="DIRECTOR">원장</SelectItem>
-                            <SelectItem value="TEACHER">교사</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <p className="text-[11px] text-muted-foreground">
-                        가입 후 관리자 승인이 필요합니다. 승인 시 &quot;사용자&quot; 등급으로 시작합니다.
-                    </p>
-                </div>
+                <p className="text-[11px] text-muted-foreground">
+                    가입 신청은 학원강사/일반 사용자로 생성되며, 승인 후 관리자가 사용자 레벨을 조정할 수 있습니다.
+                </p>
                 <div className="grid gap-2">
                     <Label htmlFor="password">비밀번호 (8자 이상)</Label>
                     <Input

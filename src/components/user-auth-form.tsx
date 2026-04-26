@@ -50,12 +50,6 @@ export function UserAuthForm({ className, ...props }: React.HTMLAttributes<HTMLD
         const id = (form.elements.namedItem("id") as HTMLInputElement).value.trim()
         const password = (form.elements.namedItem("password") as HTMLInputElement).value
 
-        if (!academyId) {
-            toast.error("소속 학원을 선택하세요.")
-            setIsLoading(false)
-            return
-        }
-
         try {
             const result = await signIn("credentials", {
                 id,
@@ -68,7 +62,8 @@ export function UserAuthForm({ className, ...props }: React.HTMLAttributes<HTMLD
             if (result?.error) {
                 toast.error("아이디, 비밀번호 또는 소속 학원이 올바르지 않습니다.")
             } else if (result?.ok) {
-                router.push("/")
+                router.replace("/")
+                router.refresh()
             }
         } catch (error) {
             toast.error("오류가 발생했습니다. 잠시 후 다시 시도하세요.")
@@ -117,8 +112,7 @@ export function UserAuthForm({ className, ...props }: React.HTMLAttributes<HTMLD
                             <Select
                                 value={academyId}
                                 onValueChange={setAcademyId}
-                                disabled={isLoading || academies.length === 0}
-                                required
+                                disabled={isLoading}
                             >
                                 <SelectTrigger
                                     id="login-academy"
@@ -143,8 +137,8 @@ export function UserAuthForm({ className, ...props }: React.HTMLAttributes<HTMLD
                                 </p>
                             )}
                             <p className="text-[11px] text-muted-foreground leading-snug">
-                                가입 시 선택한 소속 학원과 동일하게 선택하세요. 전역 관리자만 &quot;전역&quot;을
-                                선택할 수 있습니다.
+                                시스템 전체 관리자는 선택하지 않아도 로그인됩니다. 학원 사용자는 가입 시 선택한
+                                소속 학원과 동일하게 선택하세요.
                             </p>
                         </div>
                     </div>

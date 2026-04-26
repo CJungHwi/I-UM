@@ -20,7 +20,7 @@ export default async function ProspectsPage() {
     const academiesRes = await listIumAcademiesForRegister()
     const academies = academiesRes.success && academiesRes.data ? academiesRes.data : []
 
-    const isAdmin = session.user.userGrade === "ADMIN"
+    const isAdmin = session.user.role === "SYSTEM_ADMIN" || session.user.role === "ACADEMY_ADMIN"
     const userAcademyId =
         session.user.academyId != null && session.user.academyId > 0
             ? Number(session.user.academyId)

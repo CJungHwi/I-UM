@@ -1,13 +1,12 @@
 import "next-auth"
 import "next-auth/jwt"
-import type { IumUserGrade, IumUserLevel } from "@/types/ium-user"
+import type { IumUserRole } from "@/types/ium-user"
 
 declare module "next-auth" {
     interface User {
         mbId?: string
         mbLevel?: number
-        userLevel?: IumUserLevel
-        userGrade?: IumUserGrade
+        role?: IumUserRole
         /** NULL이면 전역(시스템) 관리자로 취급 가능 */
         academyId?: number | null
     }
@@ -20,8 +19,7 @@ declare module "next-auth" {
             email?: string | null
             image?: string | null
             mbLevel?: number
-            userLevel?: IumUserLevel
-            userGrade?: IumUserGrade
+            role?: IumUserRole
             /** 소속 학원. NULL이면 전역 운영자(시스템 관리자) 구분에 사용 */
             academyId: number | null
             /** sp_rbac_list_permissions_by_role 결과 */
@@ -35,8 +33,7 @@ declare module "next-auth/jwt" {
         id?: number
         mbId?: string
         mbLevel?: number
-        userLevel?: IumUserLevel
-        userGrade?: IumUserGrade
+        role?: IumUserRole
         academyId?: number | null
         permissions?: string[]
     }

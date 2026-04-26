@@ -1,8 +1,8 @@
 /** 전역(시스템 관리자) 알림 수신 범위 */
 export type SystemNotificationAudience = "ALL" | "ALL_ADMINS" | "USER"
 
-/** 학원(학원 관리자) 알림 수신 범위 — 역할·프로세스별 세그먼트 */
-export type AcademyNotificationAudience = "ALL" | "ADMINS" | "DIRECTORS" | "TEACHERS" | "USER"
+/** 학원(학원 관리자) 알림 수신 범위 */
+export type AcademyNotificationAudience = "ALL" | "ADMINS" | "MEMBERS" | "USER"
 
 export type NotificationScope = "SYSTEM" | "ACADEMY"
 

@@ -53,14 +53,8 @@ export function NotificationsAdminClient() {
     const [fromAudience, setFromAudience] = useState<string>("ALL")
     const [fromTarget, setFromTarget] = useState<string>("")
 
-    const canSystem = isSystemAdmin(
-        session?.user?.userGrade,
-        session?.user?.academyId ?? null,
-    )
-    const canAcademy = isAcademyAdmin(
-        session?.user?.userGrade,
-        session?.user?.academyId ?? null,
-    )
+    const canSystem = isSystemAdmin(session?.user?.role)
+    const canAcademy = isAcademyAdmin(session?.user?.role)
 
     const load = async () => {
         const t = await adminListNotificationTemplates()
@@ -320,8 +314,7 @@ export function NotificationsAdminClient() {
                                             <>
                                                 <SelectItem value="ALL">학원 전체</SelectItem>
                                                 <SelectItem value="ADMINS">학원 관리자만</SelectItem>
-                                                <SelectItem value="DIRECTORS">원장(디렉터)만</SelectItem>
-                                                <SelectItem value="TEACHERS">교사만</SelectItem>
+                                                <SelectItem value="MEMBERS">학원강사/일반만</SelectItem>
                                                 <SelectItem value="USER">특정 사용자 1명</SelectItem>
                                             </>
                                         ) : null}
@@ -427,8 +420,7 @@ export function NotificationsAdminClient() {
                                             <>
                                                 <SelectItem value="ALL">학원 전체</SelectItem>
                                                 <SelectItem value="ADMINS">학원 관리자만</SelectItem>
-                                                <SelectItem value="DIRECTORS">원장(디렉터)만</SelectItem>
-                                                <SelectItem value="TEACHERS">교사만</SelectItem>
+                                                <SelectItem value="MEMBERS">학원강사/일반만</SelectItem>
                                                 <SelectItem value="USER">특정 사용자 1명</SelectItem>
                                             </>
                                         ) : null}

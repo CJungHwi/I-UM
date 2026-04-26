@@ -1,7 +1,7 @@
 -- ============================================================
 -- 알림: 템플릿 + 발송 + 읽음
 -- scope=SYSTEM  → 전역(시스템 관리자): ALL, ALL_ADMINS, USER
--- scope=ACADEMY → 학원(학원 관리자): ALL, ADMINS, DIRECTORS, TEACHERS, USER
+-- scope=ACADEMY → 학원(학원 관리자): ALL, ADMINS, MEMBERS, USER
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS ium_notification_template (
@@ -129,7 +129,7 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'INVALID_SYSTEM_AUDIENCE';
     END IF;
 
-    IF p_scope = 'ACADEMY' AND p_audience NOT IN ('ALL', 'ADMINS', 'DIRECTORS', 'TEACHERS', 'USER') THEN
+    IF p_scope = 'ACADEMY' AND p_audience NOT IN ('ALL', 'ADMINS', 'MEMBERS', 'USER') THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'INVALID_ACADEMY_AUDIENCE';
     END IF;
 
@@ -195,7 +195,7 @@ BEGIN
     IF p_scope = 'SYSTEM' AND p_audience NOT IN ('ALL', 'ALL_ADMINS', 'USER') THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'INVALID_SYSTEM_AUDIENCE';
     END IF;
-    IF p_scope = 'ACADEMY' AND p_audience NOT IN ('ALL', 'ADMINS', 'DIRECTORS', 'TEACHERS', 'USER') THEN
+    IF p_scope = 'ACADEMY' AND p_audience NOT IN ('ALL', 'ADMINS', 'MEMBERS', 'USER') THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'INVALID_ACADEMY_AUDIENCE';
     END IF;
     IF p_scope = 'ACADEMY' AND p_audience = 'USER' AND p_target_user_id > 0 THEN
@@ -224,8 +224,7 @@ END$$
 
 CREATE PROCEDURE sp_notif_list_for_user(
     IN p_user_id BIGINT,
-    IN p_user_grade VARCHAR(20),
-    IN p_user_level VARCHAR(20),
+    IN p_user_role VARCHAR(30),
     IN p_user_academy_id BIGINT,
     IN p_limit INT
 )
@@ -250,7 +249,7 @@ BEGIN
             AND n.academy_id IS NULL
             AND (
                 n.audience = 'ALL'
-                OR (n.audience = 'ALL_ADMINS' AND p_user_grade = 'ADMIN')
+                OR (n.audience = 'ALL_ADMINS' AND p_user_role IN ('SYSTEM_ADMIN', 'ACADEMY_ADMIN'))
                 OR (n.audience = 'USER' AND n.target_user_id = p_user_id)
             )
         )
@@ -262,9 +261,8 @@ BEGIN
             AND n.academy_id = p_user_academy_id
             AND (
                 n.audience = 'ALL'
-                OR (n.audience = 'ADMINS' AND p_user_grade = 'ADMIN')
-                OR (n.audience = 'DIRECTORS' AND p_user_level = 'DIRECTOR')
-                OR (n.audience = 'TEACHERS' AND p_user_level = 'TEACHER')
+                OR (n.audience = 'ADMINS' AND p_user_role = 'ACADEMY_ADMIN')
+                OR (n.audience = 'MEMBERS' AND p_user_role = 'ACADEMY_MEMBER')
                 OR (n.audience = 'USER' AND n.target_user_id = p_user_id)
             )
         )
@@ -274,8 +272,7 @@ END$$
 
 CREATE PROCEDURE sp_notif_unread_count(
     IN p_user_id BIGINT,
-    IN p_user_grade VARCHAR(20),
-    IN p_user_level VARCHAR(20),
+    IN p_user_role VARCHAR(30),
     IN p_user_academy_id BIGINT
 )
 BEGIN
@@ -290,7 +287,7 @@ BEGIN
             AND n.academy_id IS NULL
             AND (
                 n.audience = 'ALL'
-                OR (n.audience = 'ALL_ADMINS' AND p_user_grade = 'ADMIN')
+                OR (n.audience = 'ALL_ADMINS' AND p_user_role IN ('SYSTEM_ADMIN', 'ACADEMY_ADMIN'))
                 OR (n.audience = 'USER' AND n.target_user_id = p_user_id)
             )
         )
@@ -302,9 +299,8 @@ BEGIN
             AND n.academy_id = p_user_academy_id
             AND (
                 n.audience = 'ALL'
-                OR (n.audience = 'ADMINS' AND p_user_grade = 'ADMIN')
-                OR (n.audience = 'DIRECTORS' AND p_user_level = 'DIRECTOR')
-                OR (n.audience = 'TEACHERS' AND p_user_level = 'TEACHER')
+                OR (n.audience = 'ADMINS' AND p_user_role = 'ACADEMY_ADMIN')
+                OR (n.audience = 'MEMBERS' AND p_user_role = 'ACADEMY_MEMBER')
                 OR (n.audience = 'USER' AND n.target_user_id = p_user_id)
             )
         )
@@ -322,8 +318,7 @@ END$$
 
 CREATE PROCEDURE sp_notif_mark_all_read(
     IN p_user_id BIGINT,
-    IN p_user_grade VARCHAR(20),
-    IN p_user_level VARCHAR(20),
+    IN p_user_role VARCHAR(30),
     IN p_user_academy_id BIGINT
 )
 BEGIN
@@ -339,7 +334,7 @@ BEGIN
             AND n.academy_id IS NULL
             AND (
                 n.audience = 'ALL'
-                OR (n.audience = 'ALL_ADMINS' AND p_user_grade = 'ADMIN')
+                OR (n.audience = 'ALL_ADMINS' AND p_user_role IN ('SYSTEM_ADMIN', 'ACADEMY_ADMIN'))
                 OR (n.audience = 'USER' AND n.target_user_id = p_user_id)
             )
         )
@@ -351,9 +346,8 @@ BEGIN
             AND n.academy_id = p_user_academy_id
             AND (
                 n.audience = 'ALL'
-                OR (n.audience = 'ADMINS' AND p_user_grade = 'ADMIN')
-                OR (n.audience = 'DIRECTORS' AND p_user_level = 'DIRECTOR')
-                OR (n.audience = 'TEACHERS' AND p_user_level = 'TEACHER')
+                OR (n.audience = 'ADMINS' AND p_user_role = 'ACADEMY_ADMIN')
+                OR (n.audience = 'MEMBERS' AND p_user_role = 'ACADEMY_MEMBER')
                 OR (n.audience = 'USER' AND n.target_user_id = p_user_id)
             )
         )

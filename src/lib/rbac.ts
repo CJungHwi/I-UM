@@ -1,13 +1,10 @@
 import type { Session } from "next-auth"
-import type { IumUserGrade, IumUserLevel } from "@/types/ium-user"
+import type { IumUserRole } from "@/types/ium-user"
 import type { PermissionCode } from "@/types/rbac"
 
-/** ium_users.user_level + user_grade → rbac_role.role_code */
-export function buildRoleCode(
-    userLevel: IumUserLevel,
-    userGrade: IumUserGrade,
-): string {
-    return `${userLevel}_${userGrade}`
+/** ium_users.role → rbac_role.role_code */
+export function buildRoleCode(role: IumUserRole): string {
+    return role
 }
 
 export function sessionPermissions(session: Session | null | undefined): string[] {

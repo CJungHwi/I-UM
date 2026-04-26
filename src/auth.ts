@@ -6,7 +6,7 @@ import { callProcedure } from "@/lib/db"
 import { verifyPassword } from "@/lib/password"
 import { IUM_LOGIN_SYSTEM_ACADEMY_VALUE, mapToMenuLevel } from "@/lib/ium-user"
 import { buildRoleCode } from "@/lib/rbac"
-import type { IumUserGrade, IumUserLevel } from "@/types/ium-user"
+import type { IumUserRole } from "@/types/ium-user"
 import { z } from "zod"
 
 export const { auth, signIn, signOut, handlers } = NextAuth({
@@ -27,8 +27,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                 token.name = user.name
                 token.email = (user as any).email
                 token.mbLevel = (user as any).mbLevel
-                token.userLevel = (user as any).userLevel
-                token.userGrade = (user as any).userGrade
+                token.role = (user as any).role
                 token.academyId =
                     (user as any).academyId !== undefined && (user as any).academyId !== null
                         ? Number((user as any).academyId)
@@ -37,10 +36,9 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                     token.academyId = null
                 }
 
-                const ul = (user as any).userLevel as IumUserLevel | undefined
-                const ug = (user as any).userGrade as IumUserGrade | undefined
-                if (ul && ug) {
-                    const roleCode = buildRoleCode(ul, ug)
+                const role = (user as any).role as IumUserRole | undefined
+                if (role) {
+                    const roleCode = buildRoleCode(role)
                     try {
                         const rows = await callProcedure<{
                             perm_code?: string
@@ -68,8 +66,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                     email: (token.email as string | null | undefined) ?? null,
                     image: session.user?.image ?? null,
                     mbLevel: token.mbLevel as number | undefined,
-                    userLevel: token.userLevel as IumUserLevel | undefined,
-                    userGrade: token.userGrade as IumUserGrade | undefined,
+                    role: token.role as IumUserRole | undefined,
                     academyId:
                         token.academyId !== undefined && token.academyId !== null
                             ? Number(token.academyId)
@@ -109,8 +106,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                         const passwordHash = row.passwordHash ?? row.password_hash ?? row.f2 ?? ""
                         const name = row.name ?? row.f3 ?? ""
                         const email = row.email ?? row.f4 ?? null
-                        const userLevel = (row.userLevel ?? row.user_level ?? row.f5 ?? "TEACHER") as IumUserLevel
-                        const userGrade = (row.userGrade ?? row.user_grade ?? row.f6 ?? "USER") as IumUserGrade
+                        const role = (row.role ?? row.f5 ?? "ACADEMY_MEMBER") as IumUserRole
                         const uid = row.id ?? row.f0 ?? 0
                         const rawAcademy = row.academyId ?? row.academy_id
                         const parsedAcademy =
@@ -128,25 +124,26 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                             return null
                         }
 
-                        if (academyId != null && academyId > 0) {
+                        if (role === "SYSTEM_ADMIN") {
+                            if (
+                                academyChoice &&
+                                academyChoice !== IUM_LOGIN_SYSTEM_ACADEMY_VALUE
+                            ) {
+                                console.error(`System admin selected invalid academy: ${loginId}`)
+                                return null
+                            }
+                        } else if (academyId != null && academyId > 0) {
                             const sel = Number(academyChoice)
                             if (!Number.isFinite(sel) || sel !== academyId) {
                                 console.error(`Academy mismatch for ium user: ${loginId}`)
                                 return null
                             }
                         } else {
-                            if (userGrade === "ADMIN") {
-                                if (academyChoice !== IUM_LOGIN_SYSTEM_ACADEMY_VALUE) {
-                                    console.error(`System admin must select 전역 for: ${loginId}`)
-                                    return null
-                                }
-                            } else {
-                                console.error(`Invalid academy state for ium user: ${loginId}`)
-                                return null
-                            }
+                            console.error(`Invalid academy state for ium user: ${loginId}`)
+                            return null
                         }
 
-                        const mbLevel = mapToMenuLevel(userLevel, userGrade)
+                        const mbLevel = mapToMenuLevel(role)
 
                         return {
                             id: uid,
@@ -154,9 +151,8 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                             name,
                             email,
                             mbLevel,
-                            userLevel,
-                            userGrade,
-                            academyId,
+                            role,
+                            academyId: role === "SYSTEM_ADMIN" ? null : academyId,
                         }
                     }
 
@@ -192,8 +188,8 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                         name: user.name,
                         email: user.email,
                         mbLevel: user.mbLevel,
-                        userLevel: "TEACHER" as IumUserLevel,
-                        userGrade: "USER" as IumUserGrade,
+                        role: "ACADEMY_MEMBER" as IumUserRole,
+                        academyId: null,
                     }
                 } catch (error) {
                     console.error("Authentication error:", error)

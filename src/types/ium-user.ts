@@ -1,5 +1,4 @@
-export type IumUserLevel = "DIRECTOR" | "TEACHER"
-export type IumUserGrade = "ADMIN" | "USER"
+export type IumUserRole = "SYSTEM_ADMIN" | "ACADEMY_ADMIN" | "ACADEMY_MEMBER"
 export type IumApprovalStatus = "PENDING" | "APPROVED" | "REJECTED"
 
 export interface IumAcademyOption {
@@ -14,8 +13,7 @@ export interface IumUserRow {
     email: string | null
     academyId: number | null
     academyName: string | null
-    userLevel: IumUserLevel
-    userGrade: IumUserGrade
+    role: IumUserRole
     approvalStatus: IumApprovalStatus
     createdAt: string
     updatedAt: string

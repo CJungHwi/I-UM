@@ -27,13 +27,12 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
-import type { IumUserRow, IumApprovalStatus, IumUserGrade, IumUserLevel } from "@/types/ium-user"
+import type { IumUserRow, IumApprovalStatus, IumUserRole } from "@/types/ium-user"
 import {
     listIumUsers,
     approveIumUser,
     rejectIumUser,
-    setIumUserGrade,
-    setIumUserLevel,
+    setIumUserRole,
 } from "@/actions/ium-user-actions"
 
 const STATUS_LABEL: Record<IumApprovalStatus, string> = {
@@ -42,12 +41,10 @@ const STATUS_LABEL: Record<IumApprovalStatus, string> = {
     REJECTED: "반려",
 }
 
-function levelLabel(l: IumUserLevel) {
-    return l === "DIRECTOR" ? "원장" : "교사"
-}
-
-function gradeLabel(g: IumUserGrade) {
-    return g === "ADMIN" ? "관리자" : "사용자"
+function roleLabel(role: IumUserRole) {
+    if (role === "SYSTEM_ADMIN") return "시스템 전체 관리자"
+    if (role === "ACADEMY_ADMIN") return "학원관리자"
+    return "학원강사/일반"
 }
 
 export function UsersManagementClient() {
@@ -86,18 +83,10 @@ export function UsersManagementClient() {
         } else toast.error(res.error)
     }
 
-    const handleGradeChange = async (id: number, grade: IumUserGrade) => {
-        const res = await setIumUserGrade(id, grade)
+    const handleRoleChange = async (id: number, role: IumUserRole) => {
+        const res = await setIumUserRole(id, role)
         if (res.success) {
-            toast.success("등급이 변경되었습니다.")
-            load()
-        } else toast.error(res.error)
-    }
-
-    const handleLevelChange = async (id: number, level: IumUserLevel) => {
-        const res = await setIumUserLevel(id, level)
-        if (res.success) {
-            toast.success("역할이 변경되었습니다.")
+            toast.success("사용자 레벨이 변경되었습니다.")
             load()
         } else toast.error(res.error)
     }
@@ -141,8 +130,7 @@ export function UsersManagementClient() {
                                         </TableHead>
                                         <TableHead className="text-xs hidden md:table-cell">이메일</TableHead>
                                         <TableHead className="text-xs w-[88px]">상태</TableHead>
-                                        <TableHead className="text-xs w-[120px]">역할</TableHead>
-                                        <TableHead className="text-xs w-[120px]">등급</TableHead>
+                                        <TableHead className="text-xs w-[170px]">사용자 레벨</TableHead>
                                         <TableHead className="text-xs hidden lg:table-cell w-[140px]">신청일</TableHead>
                                         <TableHead className="text-xs w-[160px] text-right">작업</TableHead>
                                     </TableRow>
@@ -150,7 +138,7 @@ export function UsersManagementClient() {
                                 <TableBody>
                                     {rows.length === 0 && (
                                         <TableRow>
-                                            <TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-10">
+                                            <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-10">
                                                 표시할 사용자가 없습니다.
                                             </TableCell>
                                         </TableRow>
@@ -195,53 +183,34 @@ export function UsersManagementClient() {
                                             <TableCell className="text-xs p-1">
                                                 {u.approvalStatus === "APPROVED" ? (
                                                     <Select
-                                                        value={u.userLevel}
+                                                        value={u.role}
                                                         onValueChange={(v) =>
-                                                            handleLevelChange(u.id, v as IumUserLevel)
+                                                            handleRoleChange(u.id, v as IumUserRole)
                                                         }
                                                     >
                                                         <SelectTrigger className="h-8 text-xs bg-card">
                                                             <SelectValue />
                                                         </SelectTrigger>
                                                         <SelectContent>
-                                                            <SelectItem value="DIRECTOR">
+                                                            <SelectItem value="ACADEMY_MEMBER">
                                                                 <span className="flex items-center gap-1">
-                                                                    <UserCircle className="h-3 w-3" /> 원장
+                                                                    <UserCircle className="h-3 w-3" /> 학원강사/일반
                                                                 </span>
                                                             </SelectItem>
-                                                            <SelectItem value="TEACHER">교사</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                ) : (
-                                                    levelLabel(u.userLevel)
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="text-xs p-1">
-                                                {u.approvalStatus === "APPROVED" ? (
-                                                    <Select
-                                                        value={u.userGrade}
-                                                        onValueChange={(v) =>
-                                                            handleGradeChange(u.id, v as IumUserGrade)
-                                                        }
-                                                    >
-                                                        <SelectTrigger className="h-8 text-xs bg-card">
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="USER">
+                                                            <SelectItem value="ACADEMY_ADMIN">
                                                                 <span className="flex items-center gap-1">
-                                                                    <UserCircle className="h-3 w-3" /> 사용자
+                                                                    <Shield className="h-3 w-3" /> 학원관리자
                                                                 </span>
                                                             </SelectItem>
-                                                            <SelectItem value="ADMIN">
+                                                            <SelectItem value="SYSTEM_ADMIN">
                                                                 <span className="flex items-center gap-1">
-                                                                    <Shield className="h-3 w-3" /> 관리자
+                                                                    <Shield className="h-3 w-3" /> 시스템 전체 관리자
                                                                 </span>
                                                             </SelectItem>
                                                         </SelectContent>
                                                     </Select>
                                                 ) : (
-                                                    gradeLabel(u.userGrade)
+                                                    roleLabel(u.role)
                                                 )}
                                             </TableCell>
                                             <TableCell className="text-xs text-muted-foreground hidden lg:table-cell">

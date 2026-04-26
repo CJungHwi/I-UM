@@ -15,7 +15,7 @@ import {
     sendNotificationRaw,
 } from "@/lib/server/notifications"
 import type { ServerActionResult } from "@/types"
-import type { IumUserGrade, IumUserLevel } from "@/types/ium-user"
+import type { IumUserRole } from "@/types/ium-user"
 import type {
     NotificationAudience,
     NotificationItem,
@@ -27,8 +27,7 @@ type SessionCtx =
     | ServerActionResult<never>
     | {
           userId: number
-          userGrade: IumUserGrade
-          userLevel: IumUserLevel
+          role: IumUserRole
           userAcademyId: number | null
       }
 
@@ -41,8 +40,7 @@ async function requireSessionContext(): Promise<SessionCtx> {
     const userAcademyId = rawAid != null && rawAid > 0 ? Number(rawAid) : null
     return {
         userId: Number(session.user.id),
-        userGrade: session.user.userGrade ?? "USER",
-        userLevel: session.user.userLevel ?? "TEACHER",
+        role: session.user.role ?? "ACADEMY_MEMBER",
         userAcademyId,
     }
 }
@@ -50,7 +48,7 @@ async function requireSessionContext(): Promise<SessionCtx> {
 async function requireAdminSender(): Promise<SessionCtx> {
     const s = await requireSessionContext()
     if (!("userId" in s)) return s
-    if (s.userGrade !== "ADMIN") {
+    if (!isSystemAdmin(s.role) && !isAcademyAdmin(s.role)) {
         return { success: false, error: "관리자만 접근할 수 있습니다." }
     }
     return s
@@ -62,8 +60,7 @@ export async function fetchMyNotifications(): Promise<ServerActionResult<Notific
     try {
         const data = await listNotificationsForUser(
             s.userId,
-            s.userGrade,
-            s.userLevel,
+            s.role,
             s.userAcademyId,
             40,
         )
@@ -80,8 +77,7 @@ export async function fetchMyUnreadNotificationCount(): Promise<ServerActionResu
     try {
         const n = await getUnreadCountForUser(
             s.userId,
-            s.userGrade,
-            s.userLevel,
+            s.role,
             s.userAcademyId,
         )
         return { success: true, data: n }
@@ -109,7 +105,11 @@ export async function actionMarkAllNotificationsRead(): Promise<ServerActionResu
     const s = await requireSessionContext()
     if (!("userId" in s)) return s
     try {
-        await markAllNotificationsRead(s.userId, s.userGrade, s.userLevel, s.userAcademyId)
+        await markAllNotificationsRead(
+            s.userId,
+            s.role,
+            s.userAcademyId,
+        )
         return { success: true }
     } catch (e) {
         console.error("actionMarkAllNotificationsRead:", e)
@@ -165,11 +165,11 @@ export async function adminSendNotification(
         return { success: false, error: "제목과 내용을 입력하세요." }
     }
 
-    const ug = gate.userGrade
+    const role = gate.role
     const aid = gate.userAcademyId
 
     if (scope === "SYSTEM") {
-        if (!isSystemAdmin(ug, aid)) {
+        if (!isSystemAdmin(role)) {
             return { success: false, error: "전역(시스템) 알림은 전역 관리자만 발송할 수 있습니다." }
         }
         if (!isSystemAudience(audience)) {
@@ -186,7 +186,7 @@ export async function adminSendNotification(
     }
 
     if (scope === "ACADEMY") {
-        if (!isAcademyAdmin(ug, aid)) {
+        if (!isAcademyAdmin(role)) {
             return { success: false, error: "학원 알림은 해당 학원 관리자만 발송할 수 있습니다." }
         }
         if (!isAcademyAudience(audience)) {
@@ -216,11 +216,11 @@ export async function adminSendFromTemplate(
     const key = templateKey.trim()
     if (!key) return { success: false, error: "템플릿을 선택하세요." }
 
-    const ug = gate.userGrade
+    const role = gate.role
     const aid = gate.userAcademyId
 
     if (scope === "SYSTEM") {
-        if (!isSystemAdmin(ug, aid)) {
+        if (!isSystemAdmin(role)) {
             return { success: false, error: "전역(시스템) 알림은 전역 관리자만 발송할 수 있습니다." }
         }
         if (!isSystemAudience(audience)) {
@@ -236,7 +236,7 @@ export async function adminSendFromTemplate(
     }
 
     if (scope === "ACADEMY") {
-        if (!isAcademyAdmin(ug, aid)) {
+        if (!isAcademyAdmin(role)) {
             return { success: false, error: "학원 알림은 해당 학원 관리자만 발송할 수 있습니다." }
         }
         if (!isAcademyAudience(audience)) {

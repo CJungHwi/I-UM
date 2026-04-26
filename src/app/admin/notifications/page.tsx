@@ -8,7 +8,7 @@ export default async function AdminNotificationsPage() {
     if (!session?.user) {
         redirect("/login")
     }
-    if (session.user.userGrade !== "ADMIN") {
+    if (session.user.role !== "SYSTEM_ADMIN" && session.user.role !== "ACADEMY_ADMIN") {
         redirect("/")
     }
 

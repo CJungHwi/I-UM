@@ -1,8 +1,7 @@
 -- ============================================================
 -- 이음(I-UM) 사용자 · 소속 학원 테이블 및 프로시저
+-- 권한 체계: SYSTEM_ADMIN / ACADEMY_ADMIN / ACADEMY_MEMBER
 -- DB/연결 콜레이션을 utf8mb4_unicode_ci 로 통일한 뒤 사용하세요.
--- 프로시저 갱신 시: 아래 DROP 후 CREATE 블록 실행
--- 기존 DB에 academy 컬럼만 추가하는 경우: prisma/migrations/add_ium_academies.sql
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS ium_academies (
@@ -22,16 +21,18 @@ CREATE TABLE IF NOT EXISTS ium_users (
     password_hash    VARCHAR(255) NOT NULL COMMENT 'bcrypt 등 해시',
     name             VARCHAR(100) NOT NULL,
     email            VARCHAR(200) NULL,
-    academy_id       BIGINT       NULL COMMENT '소속 학원 FK',
-    user_level       VARCHAR(20)  NOT NULL COMMENT 'DIRECTOR=원장, TEACHER=교사',
-    user_grade       VARCHAR(20)  NOT NULL DEFAULT 'USER' COMMENT 'ADMIN=관리자, USER=일반',
+    academy_id       BIGINT       NULL COMMENT '소속 학원 FK. SYSTEM_ADMIN은 NULL',
+    role             VARCHAR(30)  NOT NULL DEFAULT 'ACADEMY_MEMBER'
+                     COMMENT 'SYSTEM_ADMIN/ACADEMY_ADMIN/ACADEMY_MEMBER',
+    user_level       VARCHAR(20)  NOT NULL DEFAULT 'TEACHER' COMMENT 'legacy',
+    user_grade       VARCHAR(20)  NOT NULL DEFAULT 'USER' COMMENT 'legacy',
     approval_status  VARCHAR(20)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/APPROVED/REJECTED',
     created_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     del_yn           CHAR(1)      NOT NULL DEFAULT 'N',
     UNIQUE KEY uq_ium_login (login_id),
     INDEX idx_approval (approval_status),
-    INDEX idx_grade (user_grade),
+    INDEX idx_role (role),
     INDEX idx_academy (academy_id),
     CONSTRAINT fk_ium_users_academy
         FOREIGN KEY (academy_id) REFERENCES ium_academies (id)
@@ -46,6 +47,7 @@ DROP PROCEDURE IF EXISTS sp_ium_list_users;
 DROP PROCEDURE IF EXISTS sp_ium_list_users_for_academy;
 DROP PROCEDURE IF EXISTS sp_ium_approve_user;
 DROP PROCEDURE IF EXISTS sp_ium_reject_user;
+DROP PROCEDURE IF EXISTS sp_ium_set_user_role;
 DROP PROCEDURE IF EXISTS sp_ium_set_user_grade;
 DROP PROCEDURE IF EXISTS sp_ium_set_user_level;
 
@@ -71,8 +73,7 @@ BEGIN
         u.password_hash   AS passwordHash,
         u.name,
         u.email,
-        u.user_level      AS userLevel,
-        u.user_grade      AS userGrade,
+        u.role,
         u.approval_status AS approvalStatus,
         u.academy_id      AS academyId,
         a.name            AS academyName
@@ -88,7 +89,6 @@ CREATE PROCEDURE sp_ium_register(
     IN p_password_hash VARCHAR(255),
     IN p_name          VARCHAR(100),
     IN p_email         VARCHAR(200),
-    IN p_user_level    VARCHAR(20),
     IN p_academy_id    BIGINT
 )
 BEGIN
@@ -109,8 +109,28 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'INVALID_ACADEMY';
     END IF;
 
-    INSERT INTO ium_users (login_id, password_hash, name, email, academy_id, user_level, user_grade, approval_status)
-    VALUES (p_login_id, p_password_hash, p_name, NULLIF(TRIM(p_email), ''), p_academy_id, p_user_level, 'USER', 'PENDING');
+    INSERT INTO ium_users (
+        login_id,
+        password_hash,
+        name,
+        email,
+        academy_id,
+        role,
+        user_level,
+        user_grade,
+        approval_status
+    )
+    VALUES (
+        p_login_id,
+        p_password_hash,
+        p_name,
+        NULLIF(TRIM(p_email), ''),
+        p_academy_id,
+        'ACADEMY_MEMBER',
+        'TEACHER',
+        'USER',
+        'PENDING'
+    );
 
     SELECT LAST_INSERT_ID() AS id;
 END$$
@@ -124,8 +144,7 @@ BEGIN
         u.login_id        AS loginId,
         u.name,
         u.email,
-        u.user_level      AS userLevel,
-        u.user_grade      AS userGrade,
+        u.role,
         u.approval_status AS approvalStatus,
         u.academy_id      AS academyId,
         a.name            AS academyName,
@@ -150,8 +169,7 @@ BEGIN
         u.login_id        AS loginId,
         u.name,
         u.email,
-        u.user_level      AS userLevel,
-        u.user_grade      AS userGrade,
+        u.role,
         u.approval_status AS approvalStatus,
         u.academy_id      AS academyId,
         a.name            AS academyName,
@@ -189,33 +207,45 @@ BEGIN
     SELECT ROW_COUNT() AS affected;
 END$$
 
-CREATE PROCEDURE sp_ium_set_user_grade(
-    IN p_id    BIGINT,
-    IN p_grade VARCHAR(20)
+CREATE PROCEDURE sp_ium_set_user_role(
+    IN p_id   BIGINT,
+    IN p_role VARCHAR(30)
 )
 BEGIN
-    UPDATE ium_users
-    SET user_grade = p_grade,
-        updated_at = CURRENT_TIMESTAMP
-    WHERE id = p_id AND del_yn = 'N' AND approval_status = 'APPROVED';
+    IF p_role NOT IN ('SYSTEM_ADMIN', 'ACADEMY_ADMIN', 'ACADEMY_MEMBER') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'INVALID_ROLE';
+    END IF;
 
-    SELECT ROW_COUNT() AS affected;
-END$$
-
-CREATE PROCEDURE sp_ium_set_user_level(
-    IN p_id    BIGINT,
-    IN p_level VARCHAR(20)
-)
-BEGIN
     UPDATE ium_users
-    SET user_level = p_level,
+    SET role = p_role,
+        academy_id = CASE
+            WHEN p_role = 'SYSTEM_ADMIN' THEN NULL
+            ELSE academy_id
+        END,
+        user_level = CASE
+            WHEN p_role IN ('SYSTEM_ADMIN', 'ACADEMY_ADMIN') THEN 'DIRECTOR'
+            ELSE 'TEACHER'
+        END,
+        user_grade = CASE
+            WHEN p_role IN ('SYSTEM_ADMIN', 'ACADEMY_ADMIN') THEN 'ADMIN'
+            ELSE 'USER'
+        END,
         updated_at = CURRENT_TIMESTAMP
-    WHERE id = p_id AND del_yn = 'N' AND approval_status = 'APPROVED';
+    WHERE id = p_id
+      AND del_yn = 'N'
+      AND approval_status = 'APPROVED'
+      AND (
+          p_role = 'SYSTEM_ADMIN'
+          OR (p_role IN ('ACADEMY_ADMIN', 'ACADEMY_MEMBER') AND academy_id IS NOT NULL)
+      );
 
     SELECT ROW_COUNT() AS affected;
 END$$
 
 DELIMITER ;
 
--- 최초 관리자: UPDATE ium_users SET user_grade='ADMIN', approval_status='APPROVED' WHERE login_id='첫계정';
+-- 최초 시스템 관리자 예시:
+-- UPDATE ium_users
+--    SET role='SYSTEM_ADMIN', user_level='DIRECTOR', user_grade='ADMIN', academy_id=NULL, approval_status='APPROVED'
+--  WHERE login_id='첫계정';
 -- 학원 등록: INSERT INTO ium_academies (name, is_active, display_order) VALUES ('○○학원', 'Y', 0);

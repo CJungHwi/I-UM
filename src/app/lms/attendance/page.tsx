@@ -16,7 +16,7 @@ export default async function AttendancePage() {
         redirect("/login")
     }
 
-    const isAdmin = session.user.userGrade === "ADMIN"
+    const isAdmin = session.user.role === "SYSTEM_ADMIN" || session.user.role === "ACADEMY_ADMIN"
 
     return (
         <TooltipProvider>

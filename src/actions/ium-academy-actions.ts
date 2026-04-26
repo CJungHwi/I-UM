@@ -10,8 +10,8 @@ async function requireAdmin(): Promise<ServerActionResult<never> | null> {
     if (!session?.user?.mbId) {
         return { success: false, error: "로그인이 필요합니다." }
     }
-    if (session.user.userGrade !== "ADMIN") {
-        return { success: false, error: "관리자만 접근할 수 있습니다." }
+    if (session.user.role !== "SYSTEM_ADMIN") {
+        return { success: false, error: "시스템 전체 관리자만 접근할 수 있습니다." }
     }
     return null
 }

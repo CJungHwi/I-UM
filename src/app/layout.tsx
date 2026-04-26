@@ -4,6 +4,7 @@ import { Providers } from "@/components/providers";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { getMenuItems, buildMenuHierarchy } from "@/lib/menu";
 import { auth } from "@/auth";
+import { mapToMenuLevel } from "@/lib/ium-user";
 import "./globals.css";
 
 const inter = Inter({
@@ -36,7 +37,9 @@ export default async function RootLayout({
   // 세션에서 사용자 권한 레벨 가져오기
   const session = await auth();
   const isAuthenticated = !!session?.user;
-  const userLevel = session?.user?.mbLevel ?? 0;
+  const userLevel = session?.user?.role
+    ? mapToMenuLevel(session.user.role)
+    : session?.user?.mbLevel ?? 0;
 
   // 메뉴 데이터 가져오기 (로그인된 경우에만)
   const menuItems = isAuthenticated ? await getMenuItems(userLevel) : [];

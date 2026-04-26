@@ -16,7 +16,7 @@ export default async function CurriculumPage() {
         redirect("/login")
     }
 
-    const isAdmin = session.user.userGrade === "ADMIN"
+    const isAdmin = session.user.role === "SYSTEM_ADMIN" || session.user.role === "ACADEMY_ADMIN"
     const userAcademyId =
         session.user.academyId != null && session.user.academyId > 0
             ? Number(session.user.academyId)
