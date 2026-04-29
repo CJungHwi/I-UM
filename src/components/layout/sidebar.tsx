@@ -1,6 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
+import type { DashboardChromeRole } from "@/lib/ium-user"
 import { DashboardNavWithFolders } from "@/components/dashboard-nav-with-folders"
 import { Button } from "@/components/ui/button"
 import { useSidebar } from "@/components/layout/sidebar-context"
@@ -11,9 +12,10 @@ import type { NavItem } from "@/types/menu"
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
     isMobile?: boolean
     menuItems: NavItem[]
+    dashboardRole?: DashboardChromeRole
 }
 
-export function Sidebar({ className, isMobile = false, menuItems }: SidebarProps) {
+export function Sidebar({ className, isMobile = false, menuItems, dashboardRole = "academy" }: SidebarProps) {
     const { isCollapsed, toggle } = useSidebar()
 
     // 모바일에서는 항상 펼쳐진 상태로 표시
@@ -27,6 +29,7 @@ export function Sidebar({ className, isMobile = false, menuItems }: SidebarProps
         <div
             className={cn(
                 "relative flex flex-col h-full border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300",
+                dashboardRole === "system-admin" && "border-l-[3px] border-l-primary",
                 collapsed ? "w-16" : "w-64",
                 className
             )}
@@ -39,10 +42,12 @@ export function Sidebar({ className, isMobile = false, menuItems }: SidebarProps
                 )}
             >
                 {collapsed ? (
-                    <span className="text-xl font-bold font-heading">G</span>
+                    <span className="text-xl font-bold font-heading">
+                        {dashboardRole === "system-admin" ? "S" : "G"}
+                    </span>
                 ) : (
                     <h2 className="text-lg font-bold tracking-tight font-heading">
-                        I-UM
+                        {dashboardRole === "system-admin" ? "Console" : "I-UM"}
                     </h2>
                 )}
             </div>

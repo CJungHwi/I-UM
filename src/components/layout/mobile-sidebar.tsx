@@ -7,13 +7,15 @@ import { Button } from "@/components/ui/button"
 import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
 import { VisuallyHidden } from "@/components/ui/visually-hidden"
+import type { DashboardChromeRole } from "@/lib/ium-user"
 import type { NavItem } from "@/types/menu"
 
 interface MobileSidebarProps {
     menuItems: NavItem[]
+    dashboardRole: DashboardChromeRole
 }
 
-export function MobileSidebar({ menuItems }: MobileSidebarProps) {
+export function MobileSidebar({ menuItems, dashboardRole }: MobileSidebarProps) {
     const [open, setOpen] = useState(false)
     const pathname = usePathname()
 
@@ -42,7 +44,7 @@ export function MobileSidebar({ menuItems }: MobileSidebarProps) {
                 <VisuallyHidden>
                     <SheetTitle>네비게이션 메뉴</SheetTitle>
                 </VisuallyHidden>
-                <Sidebar className="h-full border-r-0 w-full" isMobile menuItems={menuItems} />
+                <Sidebar className="h-full border-r-0 w-full" isMobile menuItems={menuItems} dashboardRole={dashboardRole} />
             </SheetContent>
         </Sheet>
     )

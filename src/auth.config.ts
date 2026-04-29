@@ -1,6 +1,6 @@
 import type { NextAuthConfig } from "next-auth"
 
-const PUBLIC_PATHS = new Set<string>(["/login", "/admin/register"])
+const PUBLIC_PATHS = new Set<string>(["/login", "/settings/register"])
 
 export const authConfig = {
     pages: {
@@ -23,7 +23,7 @@ export const authConfig = {
                 if (isLoggedIn && pathname === "/login") {
                     return Response.redirect(new URL("/", nextUrl))
                 }
-                if (isLoggedIn && pathname === "/admin/register") {
+                if (isLoggedIn && pathname === "/settings/register") {
                     return Response.redirect(new URL("/", nextUrl))
                 }
                 return true

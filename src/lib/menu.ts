@@ -2,13 +2,15 @@ import "server-only"
 import { callProcedure } from "@/lib/db"
 import { cache } from "react"
 import type { MenuItem } from "@/types/menu"
+import type { IumUserRole } from "@/types/ium-user"
 
 // 순수 유틸리티 함수는 menu-utils.ts에서 re-export
 export { buildMenuHierarchy, getIconComponent } from "@/lib/menu-utils"
 
 // React.cache()로 동일 요청 내 중복 쿼리 방지
 export const getMenuItems = cache(async (
-    userLevel?: number | null
+    userLevel?: number | null,
+    userRole?: IumUserRole | null
 ): Promise<MenuItem[]> => {
     console.log("[getMenuItems] 시작 - 사용자 레벨:", userLevel)
 
@@ -36,6 +38,17 @@ export const getMenuItems = cache(async (
             createdAt: item.created_at ? new Date(item.created_at) : (item.f10 ? new Date(item.f10) : null),
             updatedAt: item.updated_at ? new Date(item.updated_at) : (item.f11 ? new Date(item.f11) : null),
         }))
+
+        if (userRole === "SYSTEM_ADMIN") {
+            const systemMenu = mappedResults.find((item: MenuItem) => item.menuId === "ium-system")
+            const systemMenuId = systemMenu?.id ?? null
+            return mappedResults.filter((item: MenuItem) => {
+                if (item.menuId === "ium-system-dashboard" || item.menuId === "ium-system") {
+                    return true
+                }
+                return systemMenuId != null && item.parentId === systemMenuId
+            })
+        }
 
         return mappedResults
     } catch (error) {

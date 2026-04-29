@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 export default function SchedulePage() {
     return (
         <div className="relative h-page-container p-0 flex flex-col gap-[3px] overflow-hidden bg-background">
-            <Card className="h-full flex flex-col bg-card rounded-3xl border border-border shadow-card">
+            <Card className="h-full flex flex-col bg-card rounded-none border border-border shadow-card">
                 <CardHeader className="h-12 px-4 py-0 border-b border-border bg-muted/30 flex flex-row items-center justify-between space-y-0">
                     <CardTitle className="text-lg font-bold flex items-center gap-2 leading-none">
                         <CalendarDays className="h-5 w-5 text-primary" />
@@ -14,7 +14,7 @@ export default function SchedulePage() {
                 </CardHeader>
                 <CardContent className="flex-1 min-h-0 flex flex-col gap-4 p-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Card className="rounded-3xl border border-border shadow-card">
+                        <Card className="rounded-none border border-border shadow-card">
                             <CardContent className="p-4 flex items-start gap-3">
                                 <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
                                     <Grid3X3 className="h-5 w-5 text-primary" />
@@ -27,7 +27,7 @@ export default function SchedulePage() {
                                 </div>
                             </CardContent>
                         </Card>
-                        <Card className="rounded-3xl border border-border shadow-card">
+                        <Card className="rounded-none border border-border shadow-card">
                             <CardContent className="p-4 flex items-start gap-3">
                                 <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
                                     <ArrowLeftRight className="h-5 w-5 text-primary" />

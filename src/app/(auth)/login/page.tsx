@@ -24,7 +24,7 @@ export default function AuthenticationPage() {
                     <p className="text-center text-sm text-muted-foreground">
                         계정이 없으신가요?{" "}
                         <Link
-                            href="/admin/register"
+                            href="/settings/register"
                             className="text-primary underline-offset-4 hover:underline"
                         >
                             회원가입

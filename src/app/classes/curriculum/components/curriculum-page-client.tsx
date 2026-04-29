@@ -52,7 +52,7 @@ export function CurriculumPageClient({
 
     return (
         <div className="relative h-page-container p-0 flex flex-col gap-[3px] overflow-hidden bg-background transition-colors duration-500">
-            <Card className="h-full flex flex-col bg-card rounded-3xl border border-border shadow-card dark:shadow-none">
+            <Card className="h-full flex flex-col bg-card rounded-none border border-border shadow-card dark:shadow-none">
                 <CardHeader className="h-12 px-4 py-0 border-b border-border bg-muted/30 flex flex-row items-center justify-between space-y-0 shrink-0">
                     <CardTitle className="text-lg font-bold flex items-center gap-2 leading-none">
                         <BookOpen className="h-5 w-5 text-primary" />

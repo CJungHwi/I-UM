@@ -1,5 +1,8 @@
 import type { IumUserRole } from "@/types/ium-user"
 
+/** 레이아웃·테마 크롬 — Super Admin과 학원(Admin/담당자) 구분 */
+export type DashboardChromeRole = "system-admin" | "academy"
+
 /** 로그인·회원가입 UI: DB에 학원 미소속인 전역 관리자가 선택하는 값 */
 export const IUM_LOGIN_SYSTEM_ACADEMY_VALUE = "__SYSTEM__" as const
 

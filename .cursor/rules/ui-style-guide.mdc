@@ -1,0 +1,377 @@
+---
+description: UI 보강 — §0 레이아웃·카드·DataTable 등 (스타일 기준은 shadcn-style-guide.mdc)
+globs: ["**/*.tsx", "**/*.ts"]
+alwaysApply: false
+---
+
+# UI 스타일 가이드 (통합)
+
+이 프로젝트는 **Shadcn UI**를 기반으로 하며, **스타일·색상의 기준 문서는 `shadcn-style-guide.mdc`** 이다. 본 파일(`ui-style-guide.mdc`)은 **§0 페이지 레이아웃**, **§6 Card 이후 세부 UI·DataTable** 등을 보강한다.  
+색상 Hex·CSS 변수 표는 **`shadcn-style-guide.mdc` §1** 및 **`src/app/globals.css`** 를 따른다.  
+(구분: **§0 페이지 레이아웃** → **§1 역할 요약(색)** → **형태·카드·입력·DataTable 등** 순.)
+
+---
+
+## 0. 페이지 레이아웃 (Page Layout)
+
+관리자·대시보드 화면의 **표준 레이아웃**입니다. (참조: `settings/users/components/users-management-client.tsx`, `admission/consultation` 등)
+
+### 0.1 앱 셸 (DashboardLayout)
+
+- **파일**: `src/components/layout/dashboard-layout.tsx`
+- **`<main>`**: `flex min-h-0 flex-1 flex-col overflow-hidden bg-background` + 바깥 여백 패딩(레이아웃 파일과 동일한 `p-[2px]`·`p-[5px]` 등).  
+  자식이 헤더·푸터 사이 **남은 높이를 정확히 채우려면** `min-h-0`·`flex-col`을 유지할 것.
+
+### 0.2 페이지 컨테이너 (Page Container)
+
+페이지 루트 래퍼(대부분 `*-client.tsx` 또는 `page.tsx`의 최상위 `div`)에 사용합니다.
+
+| 항목 | 값 |
+|------|-----|
+| **클래스** | `relative h-page-container p-0 flex flex-col gap-[3px] overflow-hidden bg-background transition-colors duration-500` |
+| **높이** | 유틸 **`h-page-container`** (`globals.css`) — `flex: 1 1 0%` + `min-height: 0`으로 **`<main>`이 준 세로 공간을 꽉 채움**. 푸터 아래 빈 띠를 막기 위해 **`calc(100vh-140px)` 고정 높이는 사용하지 않음**. |
+| **간격** | 자식 블록 사이 `gap-[3px]` 통일 |
+
+**참고 (레거시)**: `h-[calc(100vh-140px)]` 또는 `h-[calc(100dvh-140px)]`는 헤더·푸터·`<main>` 패딩과 합이 어긋나면 본문 아래에 배경만 보이는 빈 구간이 생길 수 있음.
+
+### 0.3 레이아웃 셸 색 (헤더·사이드바)
+
+- **구현**: `bg-sidebar`, `text-sidebar-foreground`, `border-sidebar-border` 등 **CSS 변수**(`globals.css`의 `--sidebar*`) 사용.
+- **하드코딩 참고(문서용)**: 다크 헤더/사이드 `#1d1d1d`·텍스트 `#fff`, 라이트 `#f9fafb`·텍스트 `#1d1d1d` — 실제는 토큰 우선.
+
+---
+
+### 0.4 좌우 분할 패널 레이아웃 (Split-Panel Layout)
+
+목록(좌) + 상세(우) 구조. (참조: 상담/원생 등 `consultation`·`students` 패턴)
+
+**구조**
+
+```
+페이지 컨테이너
+└── Card (메인 카드)
+    ├── CardHeader (페이지 제목만)
+    └── CardContent (p-0)
+        └── flex flex-col lg:flex-row (분할 컨테이너)
+            ├── 좌측 패널 (목록)
+            ├── 구분선
+            └── 우측 패널 (상세)
+```
+
+**클래스 및 스펙**
+
+| 요소 | 클래스 | 설명 |
+|------|--------|------|
+| **분할 컨테이너** | `flex flex-1 min-h-0 flex-col lg:flex-row overflow-hidden` | `lg` 이상 좌우, 모바일은 세로 스택 |
+| **좌측 패널** | `lg:w-[55%] min-w-0 flex-1 flex flex-col overflow-hidden border-r border-[#343637] dark:border-[#6b7280] min-h-[200px] lg:min-h-0` | 목록, `lg`에서 약 55% 너비 |
+| **패널 헤더** | `h-10 shrink-0 px-3 py-0 border-b bg-muted/30 flex flex-row items-center justify-between space-y-0 border-[#343637] dark:border-[#6b7280]` | 패널별 섹션 제목 |
+| **필터/툴바 영역** | `p-3 border-b border-[#343637] dark:border-[#6b7280] bg-[#f9fafb]/50 dark:bg-muted/20` | 검색·버튼 등 |
+| **필터 그리드 (1:2:1)** | `grid grid-cols-[1fr_2fr_1fr] gap-3 items-end min-w-0` | 라벨·입력·버튼 비율 |
+| **버튼 그리드 (4열)** | `grid grid-cols-2 sm:grid-cols-4 gap-2 min-w-0` | 추가/저장/삭제/취소 등 |
+| **구분선** | `w-1 shrink-0 border-l border-[#343637] dark:border-[#6b7280] hidden lg:block` | 배경 없음, 좌측 border만 |
+| **우측 패널** | `flex-1 min-w-0 flex flex-col overflow-hidden min-h-[300px] lg:min-h-0` | 상세 영역 |
+| **패널 콘텐츠** | `flex-1 min-h-0 p-3 overflow-auto` | 스크롤 본문 |
+
+**빈 상태 (Empty State)** — 우측에 선택 항목이 없을 때
+
+- 컨테이너: `h-full flex flex-col items-center justify-center gap-4 text-center`
+- 아이콘: `h-16 w-16 text-muted-foreground/30`
+- 제목: `text-sm font-medium` / 부가: `text-xs text-muted-foreground`
+
+**분할 패널 사용 시 `CardContent`**
+
+- `className="flex-1 min-h-0 flex flex-col gap-0 p-0 overflow-hidden"` (패딩은 패널 내부에서 처리)
+
+**파일 구조**
+
+- `page.tsx`: 권한·데이터 로딩 후 클라이언트 레이아웃 컴포넌트 렌더.
+- **페이지 컨테이너·Card·분할 패널** 등 UI 골격은 `components/*-page-client.tsx` 또는 `components/*-client.tsx`에 둠.
+
+---
+
+## 1. 테마 팔레트 (Color Logic) — 요약
+
+**상세 표·Hex는 `shadcn-style-guide.mdc` §1 과 `globals.css`를 본다.**
+
+| 역할 | Tailwind 토큰 예시 |
+|------|-------------------|
+| 페이지 캔버스 | `bg-background` |
+| 카드·표면 | `bg-card`, `bg-popover` |
+| 본문 글자 | `text-foreground`, `text-muted-foreground` |
+| 강조 블루 | `bg-primary`, `text-primary` |
+| 포인트 노랑 | `bg-point` |
+| 크롬(헤더·사이드바) | `bg-sidebar`, `border-sidebar-border` |
+
+- **Primary / Point**는 버튼·배지·하이라이트에 사용하고, 본문 대비(가독성)를 유지할 것.
+
+---
+
+## 2. 형태 & 무드 (Shape & Vibe)
+
+- **모서리**: 기본값은 **`rounded-3xl`** — 카드, 다이얼로그, 입력 그룹, 패널 등 표면 컴포넌트에 아주 둥근 형태를 기본으로 한다.
+- **그림자·테두리**:
+  - **라이트**: 부드러운 **블루 톤 그림자** 사용 (예: `shadow-[0_8px_32px_rgba(130,170,227,0.18)]` 또는 유사한 `shadow-*` / 커스텀 shadow). 무거운 검정 그림자는 지양.
+  - **다크**: 그림자 대신 **`border border-[#343A50]`** 로 깊이·구분을 낸다. 카드·서브 패널 등 표면에 적용.
+
+---
+
+## 3. 타이포그래피 (Typography)
+
+- **본문·메인 글자색**
+  - 라이트: **`#2D3436`**
+  - 다크: **`#E0E0E0`**
+- Shadcn에서는 `text-foreground`, `text-muted-foreground` 등 토큰과 위 색이 일치하도록 테마 변수를 맞춘다.
+
+**추가 규칙**
+
+- **폰트 패밀리**: 기본 `Inter`, 브랜드 헤더 `Oswald`
+- **H1 (페이지 제목)**: `text-2xl font-bold`
+- **H2 (섹션)**: `text-xl font-bold` 또는 `font-semibold`
+- **H3 (카드 제목)**: `text-lg font-semibold`
+- **본문**: `text-sm` / 보조: `text-muted-foreground`
+
+---
+
+## 4. 테마 전환 인터랙션 (Interaction)
+
+- 라이트/다크 전환 시 색이 자연스럽게 이어지도록, 테마 영향을 받는 래퍼·레이아웃·주요 표면에 **`transition-colors duration-500`** 을 적용한다.
+
+---
+
+## 5. 필수 사용 컴포넌트 (Shadcn)
+
+다음 UI 요소는 Shadcn 컴포넌트를 사용합니다.
+
+| UI 요소 | Shadcn 컴포넌트 | 위치 |
+|---------|----------------|------|
+| 버튼 | `Button` | `@/components/ui/button` |
+| 카드 | `Card`, `CardHeader`, `CardTitle`, `CardContent` | `@/components/ui/card` |
+| 입력창 | `Input` | `@/components/ui/input` |
+| 드롭다운 메뉴 | `DropdownMenu` | `@/components/ui/dropdown-menu` |
+| 다이얼로그 | `Dialog` | `@/components/ui/dialog` |
+| 시트 (모바일 메뉴) | `Sheet` | `@/components/ui/sheet` |
+| 테이블 | `Table` | `@/components/ui/table` |
+| 툴팁 | `Tooltip` | `@/components/ui/tooltip` |
+| 스크롤 영역 | `ScrollArea` | `@/components/ui/scroll-area` |
+| 아바타 | `Avatar` | `@/components/ui/avatar` |
+| 분리선 | `Separator` | `@/components/ui/separator` |
+
+---
+
+## 6. Card 스타일 가이드
+
+### 메인 카드 (Main Card)
+
+```tsx
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { FileText } from "lucide-react"
+
+<Card className="rounded-3xl border bg-card shadow-[0_8px_32px_rgba(130,170,227,0.18)] dark:border-[#343A50] dark:shadow-none">
+  <CardHeader>
+    <CardTitle>
+      <FileText className="h-5 w-5" />
+      카드 제목
+    </CardTitle>
+  </CardHeader>
+  <CardContent>
+    {/* 컨텐츠 */}
+  </CardContent>
+</Card>
+```
+
+**사양 요약**
+
+- **Card**: `h-full flex flex-col bg-card rounded-3xl border` + 라이트 블루 그림자 / 다크 `dark:border-[#343A50] dark:shadow-none`
+- **CardHeader**: `h-12 px-4 py-0 border-b bg-muted/30 flex flex-row items-center justify-between`
+- **CardTitle**: `text-lg font-bold flex items-center gap-2 leading-none`
+- **CardContent**: `flex-1 min-h-0 flex flex-col gap-[3px] p-4 overflow-auto`
+- **아이콘**: `h-5 w-5`
+
+### 서브 카드 (Sub Card)
+
+```tsx
+<Card className="flex flex-col overflow-hidden rounded-3xl border border-[#343637] dark:border-[#343A50] shadow-[0_4px_24px_rgba(130,170,227,0.12)] dark:shadow-none">
+  <CardHeader className="h-8 px-3 py-0">
+    <CardTitle className="text-xs font-bold">서브 카드 제목</CardTitle>
+  </CardHeader>
+  <CardContent className="p-2">{/* 컨텐츠 */}</CardContent>
+</Card>
+```
+
+---
+
+## 7. UI 요소 (Buttons, Inputs, Toast, Icons, Spacing)
+
+### 버튼 & 입력
+
+- **표준 높이**: `h-10` / **작은 높이**: `h-9`
+- **모서리**: `rounded-md` (입력 등), 카드는 **§2 형태 & 무드**·**§6 Card**와 동일 규칙 (`rounded-3xl` 등)
+- **포커스**: `ring-2 ring-ring` (offset 2px)
+- **입력 배경**: `bg-card`
+
+#### X 버튼이 있는 입력
+
+- **Wrapper**: `relative`
+- **Input**: `bg-card pr-8`
+- **Clear**: `absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors`, 아이콘 `h-4 w-4`
+
+#### 날짜 선택 버튼 (Popover + Calendar)
+
+- **Trigger**: `min-w-[150px] justify-between text-left border-[#343637] dark:border-[#6b7280] h-9 text-xs`
+- **CalendarIcon**: `ml-2 h-4 w-4`
+- **PopoverContent**: `w-auto p-0`
+- **표시**: `YYYY년 MM월 DD일` (Dayjs) / `yyyy년 MM월 dd일` (date-fns)
+
+#### 년월 선택 (MonthInput)
+
+- **Label**: `text-[11px] text-muted-foreground leading-none`
+- **Input**: `w-full border-[#343637] dark:border-[#6b7280] bg-card h-9 text-xs`
+- **표시**: `YYYY년 MM월`
+
+### 스낵바 / Toast
+
+- `alert()` 금지 → Toast/Sonner
+- **위치**: `top-center`
+- **Multiline**: `white-space: pre-line` (메시지 내 `\n` 표시)
+- **지속시간**: success/info/warning `2500ms`, error `4500ms`
+- **확인이 필요한 경우**: `ConfirmDialog` 또는 기존 `window.confirm` 패턴
+
+### 아이콘
+
+- **섹션 타이틀**: `h-5 w-5`
+- **버튼/인라인**: `h-4 w-4`
+
+### 간격
+
+- 박스 간: `gap-[3px]` (`gap-[3px]`)
+
+---
+
+## 8. 다이얼로그 (Dialog)
+
+- **DialogHeader**: `h-12 px-4 py-0 border-b bg-muted/30 flex flex-row items-center justify-between space-y-0`
+- **DialogTitle**: `text-lg font-bold flex items-center gap-2 leading-none`
+
+**서브 카드 (내부 구획)**
+
+- **Card**: `flex flex-col overflow-hidden border border-[#343637] dark:border-[#6b7280] shadow-md` (또는 메인 카드와 동일하게 블루 톤 그림자로 통일 가능)
+- **CardHeader**: `h-8 px-3 py-0 border-b bg-muted/30 flex flex-row items-center justify-between border-[#343637] dark:border-[#6b7280]`
+- **CardTitle**: `text-xs font-bold`
+- **CardContent**: `p-2`
+- **Textarea/Input**: `text-xs bg-card border-[#343637] dark:border-[#6b7280] resize-none`
+
+---
+
+## 9. 탭 (Tabs)
+
+- **TabsList**: `grid grid-cols-2 h-9 mb-[3px] bg-muted/40 dark:bg-gray-800/60 border border-[#343637] dark:border-[#6b7280] p-1`
+- **TabsTrigger 기본**: `text-xs font-bold text-muted-foreground hover:bg-muted/60 dark:hover:bg-gray-700/60`
+- **TabsTrigger 활성**: `data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none`
+- **주의**: `font-weight` 변경으로 레이아웃이 흔들리지 않도록 기본 `font-bold` 유지.
+
+---
+
+## 10. 사이드바 (Sidebar)
+
+- **Collapsed**: 아이템 `gap-4`, `py-4`, 아이콘 `justify-center`
+
+---
+
+## 11. 데이터 테이블 (DataGrid / DataTable)
+
+**레이아웃**
+
+- **스크롤**: 무한 스크롤 (페이지네이션 미사용)
+- **간격**: 부모와 밀착 `p-0`
+- **높이**: `h-full` 또는 `flex-1`
+- **테이블**: `w-full table-fixed border-separate border-spacing-0`
+
+**치수**
+
+- 헤더 `45px`, 행 `35px`, 모서리는 부모에 따름 (별도 `rounded` 없음)
+
+**폰트**
+
+- 헤더·행 모두 `text-xs`
+
+**색상**
+
+- **헤더 배경**: Light `bg-primary/10` 또는 `bg-primary/15` / Dark `dark:bg-[#303653]` 또는 `dark:bg-primary/15`
+- **헤더 텍스트**: Light `text-foreground` / Dark `dark:text-[#E0E0E0]` — `TableHead`에 직접 적용
+- **행·빈 영역 배경**: Light `bg-card` / Dark `dark:bg-[#252841]`
+- **테두리**: Light `border-border` / Dark `dark:border-[#343A50]`
+
+**호버**
+
+- `font-weight` 변경 금지
+- Light: 헤더와 구분 — 행은 **`hover:bg-muted/55` ~ `hover:bg-muted/65`** 등 중립 톤, 헤더는 **`bg-primary/10`** 유지 (동일 블루 틴트 금지)
+- Dark: `dark:hover:bg-primary/15`
+- `text-muted-foreground` 셀은 `group-hover`로 위 배경과 어울리게 처리
+
+**선택 행**
+
+- `selectedId === row.id && "bg-primary/20"`
+- 셀에 `group-hover:text-inherit transition-colors`
+
+**테두리**
+
+- 가로: 없음 (`border-b` 없음)
+- 세로: `border-r` (마지막 컬럼 제외), 색은 위 테두리 규칙
+
+**Sticky 헤더**
+
+- `TableHeader`에 `sticky top-0 z-10`, 헤더 텍스트 가운데 정렬, 스크롤 시 배경 유지
+
+**스크롤 UX**
+
+- 필요 시 `scrollbar-hide`
+
+**툴팁**
+
+- `truncate` 셀에는 `Tooltip` + `TooltipTrigger asChild` + `TooltipContent` (`max-w-xs`, 긴 본문은 `whitespace-pre-wrap`)
+- 페이지는 가능하면 `TooltipProvider`로 감싸기
+
+---
+
+## 12. 테두리 (일반 컴포넌트)
+
+- **라이트**: `border-[#343637]` 또는 `border-border`
+- **다크**: **`border-[#343A50]`** 우선
+
+---
+
+## 13. 금지 사항
+
+- 브라우저 기본 `alert()` → Toast/Sonner
+- 커스텀 스타일만의 버튼 → `Button`
+- 직접 만든 모달 → `Dialog`
+- 페이지네이션 → 무한 스크롤(프로젝트 정책 유지 시)
+
+---
+
+## 14. 접근성 (Accessibility)
+
+인터랙티브 요소에 `tabIndex`, `aria-label`, 키보드 핸들러(`onKeyDown` 등)를 필요 시 부여한다.
+
+---
+
+## 15. 컴포넌트 파일 구조
+
+- **페이지 전용**: 해당 라우트의 `components/`
+- **공통(2페이지 이상)**: `src/components/`
+- **UI(Shadcn)**: `src/components/ui/`
+
+**Import**
+
+- 페이지별: `./components/...`
+- 공통·UI: `@/components/...`, `@/components/ui/...`
+
+```
+src/app/
+├── (dashboard)/
+│   ├── page.tsx
+│   ├── components/
+│   └── layout.tsx
+├── components/
+└── components/ui/
+```

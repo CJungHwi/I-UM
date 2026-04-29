@@ -45,33 +45,33 @@
 }
 
 :root {
-  /* Light — 스타일 가이드 테마 */
-  --background: #fdfdfd;
-  --foreground: #2d3436;
+  /* Light — 페이지 캔버스는 낮은 명도·살짝 블루 그레이로 눈부심 완화, 카드/크롬은 구분 */
+  --background: #e4eaf3;
+  --foreground: #323d45;
 
-  --card: #ffffff;
+  --card: #f9fbfe;
   --card-foreground: #2d3436;
 
-  --popover: #ffffff;
+  --popover: #f9fbfe;
   --popover-foreground: #2d3436;
 
   --primary: #82aae3;
   --primary-foreground: #1a1c2e;
 
-  --secondary: #eef2f8;
+  --secondary: #dce4f0;
   --secondary-foreground: #2d3436;
 
-  --muted: #f0f2f5;
-  --muted-foreground: #636e72;
+  --muted: #d6deeb;
+  --muted-foreground: #5a6570;
 
-  --accent: #e8eef8;
+  --accent: #d0daec;
   --accent-foreground: #2d3436;
 
   --destructive: #ef4444;
   --destructive-foreground: #fafafa;
 
-  --border: #e0e4e8;
-  --input: #e0e4e8;
+  --border: #c8d2e0;
+  --input: #c8d2e0;
   --ring: #82aae3;
 
   --point: #f9f54b;
@@ -79,15 +79,15 @@
 
   --radius: 1.5rem;
 
-  --shadow-card: 0 8px 32px rgba(130, 170, 227, 0.18);
+  --shadow-card: 0 8px 32px rgba(100, 130, 190, 0.14);
 
-  --sidebar: #ffffff;
+  --sidebar: #eef2f9;
   --sidebar-foreground: #2d3436;
   --sidebar-primary: #82aae3;
   --sidebar-primary-foreground: #1a1c2e;
-  --sidebar-accent: #eef2f8;
+  --sidebar-accent: #e2e9f4;
   --sidebar-accent-foreground: #2d3436;
-  --sidebar-border: #e0e4e8;
+  --sidebar-border: #cdd6e4;
   --sidebar-ring: #82aae3;
 }
 
@@ -136,6 +136,92 @@
   --sidebar-ring: #9dbff2;
 }
 
+/**
+ * Super Admin 전용 테마 — 학원(Admin/담당자)과 구분되는 바이올렛·슬레이트 톤.
+ * `layout.tsx`에서 `<html data-dashboard-role="system-admin">` 로 활성화.
+ */
+html[data-dashboard-role="system-admin"]:not(.dark) {
+  --background: #e6e4f0;
+  --foreground: #252233;
+
+  --card: #f7f6fc;
+  --card-foreground: #252233;
+
+  --popover: #f7f6fc;
+  --popover-foreground: #252233;
+
+  --primary: #6b54c6;
+  --primary-foreground: #fafafa;
+
+  --secondary: #ddd8ec;
+  --secondary-foreground: #2a2836;
+
+  --muted: #d4cfdf;
+  --muted-foreground: #524d66;
+
+  --accent: #cbc4e4;
+  --accent-foreground: #252233;
+
+  --border: #c4bdd8;
+  --input: #c4bdd8;
+  --ring: #6b54c6;
+
+  --point: #e8d44d;
+  --point-foreground: #252233;
+
+  --shadow-card: 0 8px 32px rgba(80, 60, 140, 0.16);
+
+  --sidebar: #e8e4f5;
+  --sidebar-foreground: #252233;
+  --sidebar-primary: #6b54c6;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #d9d3ee;
+  --sidebar-accent-foreground: #252233;
+  --sidebar-border: #c4bdd8;
+  --sidebar-ring: #6b54c6;
+}
+
+html.dark[data-dashboard-role="system-admin"] {
+  --background: #0b0d14;
+  --foreground: #eceaf4;
+
+  --card: #12151f;
+  --card-foreground: #eceaf4;
+
+  --popover: #12151f;
+  --popover-foreground: #eceaf4;
+
+  --primary: #b4a3ff;
+  --primary-foreground: #0b0d14;
+
+  --secondary: #1a1e2c;
+  --secondary-foreground: #eceaf4;
+
+  --muted: #1a1e2c;
+  --muted-foreground: #9b95b8;
+
+  --accent: #222636;
+  --accent-foreground: #eceaf4;
+
+  --border: #2a3045;
+  --input: #2a3045;
+  --ring: #b4a3ff;
+
+  --point: #f0e68c;
+  --point-foreground: #0b0d14;
+
+  --shadow-card: none;
+
+  --sidebar: #0f111a;
+  --sidebar-foreground: #eceaf4;
+  --sidebar-primary: #b4a3ff;
+  --sidebar-primary-foreground: #0b0d14;
+  --sidebar-accent: #1c2133;
+  --sidebar-accent-foreground: #eceaf4;
+  --sidebar-border: #2a3045;
+  --sidebar-ring: #b4a3ff;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -149,10 +235,14 @@
 }
 
 @layer utilities {
-  /** 헤더·푸터·메인 패딩을 제외한 페이지 영역 높이 (모바일 주소창 대응: dvh) */
+  /**
+   * 대시보드 `<main>` 안에서 남은 높이를 채움 (뷰포트 고정값이면 푸터 아래 빈 띠가 생김).
+   * 부모는 `flex flex-col` + `min-h-0` 필수.
+   */
   .h-page-container {
-    height: calc(100vh - 140px);
-    height: calc(100dvh - 140px);
+    flex: 1 1 0%;
+    min-height: 0;
+    min-width: 0;
   }
   .scrollbar-hide {
     -ms-overflow-style: none;

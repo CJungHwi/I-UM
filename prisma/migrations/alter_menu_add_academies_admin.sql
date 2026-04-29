@@ -1,9 +1,19 @@
--- 시설/안심(ium-admin) 하위에 「학원(소속) 관리」 메뉴 추가
+-- 시스템 관리(ium-system / 구 ium-settings·ium-operations) 하위에 「학원 등록·관리」 메뉴 추가
 -- 기존 DB에 한 번 실행. menu_id 충돌 시 ON DUPLICATE KEY 로 제목/경로만 갱신됩니다.
 
-SET @pid_admin = (SELECT id FROM auto_menu WHERE menu_id = 'ium-admin' LIMIT 1);
+INSERT INTO ium_menu (menu_id, title, href, icon, parent_id, sort_order, is_folder, is_active, required_level)
+SELECT 'ium-system', '시스템 관리', NULL, 'Shield', NULL, 9, 'Y', 'Y', 10
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM ium_menu WHERE menu_id = 'ium-system');
 
-INSERT INTO auto_menu (
+SET @pid_system = COALESCE(
+    (SELECT id FROM ium_menu WHERE menu_id = 'ium-system' LIMIT 1),
+    (SELECT id FROM ium_menu WHERE menu_id = 'ium-settings' LIMIT 1),
+    (SELECT id FROM ium_menu WHERE menu_id = 'ium-operations' LIMIT 1),
+    (SELECT id FROM ium_menu WHERE menu_id = 'ium-admin' LIMIT 1)
+);
+
+INSERT INTO ium_menu (
     menu_id,
     title,
     href,
@@ -14,12 +24,12 @@ INSERT INTO auto_menu (
     is_active,
     required_level
 ) VALUES (
-    'ium-ad-academies',
-    '학원(소속) 관리',
-    '/admin/academies',
+    'ium-system-academies',
+    '학원 등록·관리',
+    '/system/academies',
     'School',
-    @pid_admin,
-    5,
+    @pid_system,
+    3,
     'N',
     'Y',
     10

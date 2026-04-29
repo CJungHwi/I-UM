@@ -4,21 +4,23 @@ import Header from "@/components/layout/header"
 import Footer from "@/components/layout/footer"
 import { Sidebar } from "@/components/layout/sidebar"
 import { SidebarProvider, useSidebar } from "@/components/layout/sidebar-context"
+import type { DashboardChromeRole } from "@/lib/ium-user"
 import type { NavItem } from "@/types/menu"
 
 interface DashboardContentProps {
     children: React.ReactNode
     menuItems: NavItem[]
+    dashboardRole: DashboardChromeRole
 }
 
-function DashboardContent({ children, menuItems }: DashboardContentProps) {
+function DashboardContent({ children, menuItems, dashboardRole }: DashboardContentProps) {
     const { isCollapsed } = useSidebar()
 
     return (
         <div className="flex h-dvh min-h-dvh overflow-hidden bg-background">
             {/* 사이드바 - 데스크탑에서만 표시 */}
             <div className="hidden md:block shrink-0">
-                <Sidebar menuItems={menuItems} />
+                <Sidebar menuItems={menuItems} dashboardRole={dashboardRole} />
             </div>
 
             {/* 메인 영역 */}
@@ -29,10 +31,10 @@ function DashboardContent({ children, menuItems }: DashboardContentProps) {
                 }}
             >
                 {/* 헤더 */}
-                <Header menuItems={menuItems} />
+                <Header menuItems={menuItems} dashboardRole={dashboardRole} />
 
                 {/* 메인 컨텐츠 */}
-                <main className="flex-1 overflow-hidden bg-background p-0 md:p-2">
+                <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background p-[5px]">
                     {children}
                 </main>
 
@@ -46,15 +48,19 @@ function DashboardContent({ children, menuItems }: DashboardContentProps) {
 interface DashboardLayoutProps {
     children: React.ReactNode
     menuItems: NavItem[]
+    dashboardRole: DashboardChromeRole
 }
 
 export function DashboardLayout({
     children,
     menuItems,
+    dashboardRole,
 }: DashboardLayoutProps) {
     return (
         <SidebarProvider defaultCollapsed={false}>
-            <DashboardContent menuItems={menuItems}>{children}</DashboardContent>
+            <DashboardContent menuItems={menuItems} dashboardRole={dashboardRole}>
+                {children}
+            </DashboardContent>
         </SidebarProvider>
     )
 }

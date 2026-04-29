@@ -1,0 +1,120 @@
+---
+description: 단일 카드 관리 목록 화면 표준 — 페이지 제목·List 서브헤더·라벤더 표·하단 건수 (공사관리/학원관리 패턴)
+globs: ["**/*.tsx", "**/*.ts"]
+alwaysApply: true
+---
+
+# 관리 목록 페이지 표준 (Management List Page)
+
+**대시보드·시스템·설정 등 관리 화면**에서, 한 화면이 **「페이지 제목 → 목록 구역 제목 → 표 → 하단 건수」**로 구성될 때는 아래 골격과 클래스를 **기본값**으로 따른다. 참조 구현: `src/app/system/academies/components/academies-admin-client.tsx`, `src/app/system/admins/components/system-admins-client.tsx`, `sample.tsx` 공사목록 구간.
+
+분할 패널(목록+상세) 전체 페이지는 `shadcn-style-guide.mdc` **§0.1**을 따르되, **좌측 목록만** 단독으로 쓰는 경우에도 **목록 구역의 툴바·테이블·하단 건수**는 본 문서와 동일하게 맞춘다.
+
+### 라우트 전용 `components/` (필수)
+
+Next.js App Router에서 **해당 URL 세그먼트 전용** 관리 화면 UI는 **같은 폴더 아래 `components/`** 에 둔다.
+
+- **경로 패턴**: `src/app/.../<route>/components/<기능>-client.tsx`
+- **예시**: `src/app/system/admins/components/system-admins-client.tsx`, `src/app/system/academies/components/academies-admin-client.tsx`
+- **`page.tsx` 역할**: `metadata`, `auth`/redirect, 서버에서만 가능한 데이터 준비만. **카드·표·다이얼로그 골격**은 `*-client.tsx`에 구현한다.
+- **재사용**: 여러 라우트에서 쓰는 로직·폼은 `src/components/` 또는 `actions`/공용 훅으로 올리고, 라우트 `components` 파일은 **조합·프롭 연결** 위주로 유지한다.
+
+---
+
+## 1. 페이지 래퍼
+
+- **컨테이너**: `relative h-page-container p-0 flex flex-col gap-[3px] overflow-hidden bg-background transition-colors duration-500`
+- **높이**: `h-page-container` 고정 (`calc(100vh-…)` 직접 사용 지양 — `shadcn-style-guide.mdc` §0와 동일)
+
+---
+
+## 2. 메인 카드 (단일 주제 한 장)
+
+- **Card**: `flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden border border-[#343637] bg-card shadow-md dark:border-[#6b7280] dark:shadow-none`
+
+### 2.1 CardHeader — **페이지 제목만**
+
+- **역할**: 상단 큰 제목 한 줄(아이콘 + 페이지명). **목록 추가 버튼은 여기 두지 않음** → §3 서브헤더로.
+- **클래스**: `h-12 shrink-0 space-y-0 border-b border-[#343637] bg-[#f9fafb] px-4 py-0 dark:border-[#6b7280] dark:bg-muted/30`
+- **CardTitle**: `flex items-center gap-2 text-lg font-bold leading-none text-[#1d1d1d] dark:text-white`
+- **페이지 아이콘**: `h-5 w-5 text-primary` (주제에 맞는 Lucide 아이콘)
+
+### 2.2 CardContent — **목록 블록 전용**
+
+- **클래스**: `flex min-h-0 flex-1 flex-col gap-0 overflow-hidden p-0`
+- **내부 래퍼** (목록+푸터 한 덩어리): `flex min-h-0 flex-1 flex-col border-b border-[#343637] dark:border-[#6b7280]`
+
+---
+
+## 3. 목록 서브헤더 (`h-10`)
+
+- **행**: `flex h-10 shrink-0 flex-row items-center justify-between space-y-0 border-b border-[#343637] bg-muted/30 px-3 py-0 dark:border-[#6b7280]`
+- **왼쪽**: `List` 아이콘 `h-4 w-4 text-primary` + `text-sm font-bold` 로 **「○○목록」** (예: 학원목록, 공사목록)
+- **오른쪽**: 주요 액션(추가, 일괄 등) — `Button` `size="sm"` `className="h-7 rounded-md text-sm"` 권장
+
+---
+
+## 4. 스크롤 영역
+
+- **래퍼**: `min-h-0 flex-1 overflow-auto scrollbar-hide`
+- **로딩**: 중앙 스피너, 최소 높이 약 `h-[200px]` 등으로 테이블 자리 유지
+
+---
+
+## 5. 하단 건수 바
+
+- **행**: `flex h-8 shrink-0 items-center border-t border-[#343637] bg-muted/30 px-4 dark:border-[#6b7280]`
+- **문구**: `text-sm text-muted-foreground` — **「총 {n}건」**
+
+---
+
+## 6. 표 — 네이티브 `<table>` (관리 목록 표준)
+
+Shadcn `Table` 컴포넌트 대신 **HTML `table`** + **`border-collapse`** 로 통일한다. (고정 헤더·격자·이미지 참고 UI와 일치)
+
+- **table**: `w-full min-w-[640px] table-fixed border-collapse` (컬럼 수에 맞게 `min-w` 조정)
+- **thead**: `sticky top-0 z-10`
+
+### 6.1 셀 클래스 상수 (파일 상단 `const` 권장)
+
+아래 문자열을 그대로 쓰거나, 동일 시각을 유지하는 별칭으로만 바꾼다.
+
+**헤더 (`th`)**
+
+- **일반 열**: `h-[45px] px-1 py-0 text-center text-xs font-bold text-white bg-[#b9adb5] dark:bg-[#303653] dark:text-[#E0E0E0] border-r border-b border-[#343637] dark:border-[#6b7280]`
+- **마지막 열**: 위와 동일하되 **`border-r` 제거**
+
+**본문 (`td`)**
+
+- **일반 열**: `h-[35px] px-2 py-0 text-center text-xs align-middle border-r border-b border-[#343637]/25 dark:border-[#6b7280]/25 text-[#1d1d1d] dark:text-foreground`
+- **마지막 열**: **`border-r` 제거**
+
+**행 (`tr`)**
+
+- `transition-colors bg-white hover:bg-muted/40 dark:bg-[#252841] dark:hover:bg-primary/15`
+
+### 6.2 인라인 액션 버튼
+
+- **크기**: `h-6 rounded-md px-2 text-[10px]` 등으로 표 셀 안에 맞출 것
+
+### 6.3 툴팁·truncate
+
+- 긴 셀은 `truncate` + `Tooltip` (`TooltipProvider`는 페이지 또는 레이아웃에서) — `shadcn-style-guide.mdc` §5 DataTable 툴팁 규칙과 동일
+
+---
+
+## 7. 무한 스크롤·페이지네이션
+
+프로젝트 정책상 **목록은 무한 스크롤**을 유지한다. 본 레이아웃에서는 **스크롤 영역(§4)** 안에서 로드·append 하며, **하단 건수(§5)** 는 현재 로드된 행 수 또는 서버가 준 총건수 중 UI 요구에 맞는 쪽을 표기한다.
+
+---
+
+## 8. 신규 페이지 체크리스트
+
+1. 페이지 컨테이너 §1  
+2. 단일 Card §2 + Header는 페이지 제목만 §2.1  
+3. List + 「○○목록」 + 우측 액션 §3  
+4. 스크롤 + 네이티브 테이블 §4·§6  
+5. `총 n건` §5  
+6. 다이얼로그·폼은 기존 Shadcn 규격 유지 (`shadcn-style-guide.mdc` §4 등)  
+7. 라우트 전용 UI는 해당 폴더 `components/<이름>-client.tsx`에 두고 `page.tsx`는 서버 관심사만 (`management-list-page.mdc` 상단 § 라우트 전용 `components/`)

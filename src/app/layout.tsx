@@ -4,7 +4,7 @@ import { Providers } from "@/components/providers";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { getMenuItems, buildMenuHierarchy } from "@/lib/menu";
 import { auth } from "@/auth";
-import { mapToMenuLevel } from "@/lib/ium-user";
+import { isSystemAdmin, mapToMenuLevel } from "@/lib/ium-user";
 import "./globals.css";
 
 const inter = Inter({
@@ -42,17 +42,30 @@ export default async function RootLayout({
     : session?.user?.mbLevel ?? 0;
 
   // 메뉴 데이터 가져오기 (로그인된 경우에만)
-  const menuItems = isAuthenticated ? await getMenuItems(userLevel) : [];
+  const menuItems = isAuthenticated ? await getMenuItems(userLevel, session?.user?.role ?? null) : [];
   const navItems = buildMenuHierarchy(menuItems);
 
   return (
-    <html lang="ko" suppressHydrationWarning>
+    <html
+      lang="ko"
+      suppressHydrationWarning
+      data-dashboard-role={
+        isSystemAdmin(session?.user?.role) ? "system-admin" : undefined
+      }
+    >
       <body
         className={`${inter.variable} ${oswald.variable} font-sans antialiased`}
       >
         <Providers>
           {isAuthenticated ? (
-            <DashboardLayout menuItems={navItems}>{children}</DashboardLayout>
+            <DashboardLayout
+              menuItems={navItems}
+              dashboardRole={
+                isSystemAdmin(session?.user?.role) ? "system-admin" : "academy"
+              }
+            >
+              {children}
+            </DashboardLayout>
           ) : (
             // 로그인 전: 사이드바/헤더 없이 렌더링
             <div className="min-h-dvh bg-background">

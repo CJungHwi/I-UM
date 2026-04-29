@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
 
-export default function LmsPage() {
-    redirect("/lms/attendance")
+export default function ClassesIndexPage() {
+    redirect("/classes/attendance")
 }

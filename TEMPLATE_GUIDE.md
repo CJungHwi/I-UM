@@ -81,7 +81,7 @@ prisma/
 ```
 .cursor/
 └── rules/
-    └── shadcn-style-guide.mdc    # ✅ 스타일 가이드
+    └── ui-style-guide.mdc         # ✅ UI·스타일 통합 가이드
 ```
 
 ---

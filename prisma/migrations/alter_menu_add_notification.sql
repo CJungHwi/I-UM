@@ -1,10 +1,14 @@
--- 알림 관리 메뉴 (시설/안심 폴더 하위)
--- auto_menu에 이미 ium-admin 폴더가 있을 때 실행하세요.
+-- 알림 관리 메뉴 (학생·학부모 소통 폴더 하위)
+-- ium_menu에 ium-comm 폴더가 있을 때 실행하세요. 구 스크립트는 ium-operations 하위였습니다.
 
-SET @pid_admin = (SELECT id FROM auto_menu WHERE menu_id = 'ium-admin' LIMIT 1);
+SET @pid_comm = COALESCE(
+    (SELECT id FROM ium_menu WHERE menu_id = 'ium-comm' LIMIT 1),
+    (SELECT id FROM ium_menu WHERE menu_id = 'ium-operations' LIMIT 1),
+    (SELECT id FROM ium_menu WHERE menu_id = 'ium-admin' LIMIT 1)
+);
 
-INSERT INTO auto_menu (menu_id, title, href, icon, parent_id, sort_order, is_folder, is_active, required_level)
-VALUES ('ium-ad-notif', '알림 관리', '/admin/notifications', 'Bell', @pid_admin, 4, 'N', 'Y', 10)
+INSERT INTO ium_menu (menu_id, title, href, icon, parent_id, sort_order, is_folder, is_active, required_level)
+VALUES ('ium-comm-notifications', '알림 관리', '/comm/notifications', 'Bell', @pid_comm, 4, 'N', 'Y', 10)
 ON DUPLICATE KEY UPDATE
     title = VALUES(title),
     href = VALUES(href),
