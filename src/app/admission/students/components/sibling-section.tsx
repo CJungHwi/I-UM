@@ -27,11 +27,13 @@ import {
     listSiblings,
     unlinkSibling,
 } from "@/actions/student-actions"
+import { labelForStudentCode } from "@/lib/student-code-labels"
 
 interface SiblingSectionProps {
     student: StudentDetail
     rows: StudentRow[]
     isAdmin: boolean
+    gradeLabelByCode: Record<string, string>
     onChanged: () => Promise<void>
 }
 
@@ -39,6 +41,7 @@ export function SiblingSection({
     student,
     rows,
     isAdmin,
+    gradeLabelByCode,
     onChanged,
 }: SiblingSectionProps) {
     const [siblings, setSiblings] = React.useState<StudentSibling[]>([])
@@ -142,12 +145,12 @@ export function SiblingSection({
                                         >
                                             {s.name}
                                         </span>
-                                        {s.grade && (
+                                        {labelForStudentCode(s.grade, gradeLabelByCode) && (
                                             <Badge
                                                 variant="outline"
                                                 className="text-[10px] px-1 py-0"
                                             >
-                                                {s.grade}
+                                                {labelForStudentCode(s.grade, gradeLabelByCode)}
                                             </Badge>
                                         )}
                                         {s.status === "WITHDRAWN" && (
@@ -174,6 +177,7 @@ export function SiblingSection({
                     open={pickerOpen}
                     student={student}
                     rows={rows}
+                    gradeLabelByCode={gradeLabelByCode}
                     existingSiblingIds={siblings.map((s) => s.id)}
                     onOpenChange={setPickerOpen}
                     onPick={handleLink}
@@ -187,6 +191,7 @@ interface SiblingPickerProps {
     open: boolean
     student: StudentDetail
     rows: StudentRow[]
+    gradeLabelByCode: Record<string, string>
     existingSiblingIds: number[]
     onOpenChange: (open: boolean) => void
     onPick: (id: number) => void | Promise<void>
@@ -196,6 +201,7 @@ function SiblingPicker({
     open,
     student,
     rows,
+    gradeLabelByCode,
     existingSiblingIds,
     onOpenChange,
     onPick,
@@ -212,10 +218,12 @@ function SiblingPicker({
         .filter((r) => {
             if (!keyword.trim()) return true
             const kw = keyword.trim().toLowerCase()
+            const gradeLbl = labelForStudentCode(r.grade, gradeLabelByCode).toLowerCase()
             return (
                 r.name.toLowerCase().includes(kw) ||
                 (r.school ?? "").toLowerCase().includes(kw) ||
-                (r.grade ?? "").toLowerCase().includes(kw)
+                (r.grade ?? "").toLowerCase().includes(kw) ||
+                gradeLbl.includes(kw)
             )
         })
 
@@ -255,12 +263,12 @@ function SiblingPicker({
                                                 <span className="text-sm font-semibold truncate">
                                                     {r.name}
                                                 </span>
-                                                {r.grade && (
+                                                {labelForStudentCode(r.grade, gradeLabelByCode) && (
                                                     <Badge
                                                         variant="outline"
                                                         className="text-[10px] px-1 py-0"
                                                     >
-                                                        {r.grade}
+                                                        {labelForStudentCode(r.grade, gradeLabelByCode)}
                                                     </Badge>
                                                 )}
                                             </div>

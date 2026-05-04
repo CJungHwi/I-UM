@@ -12,6 +12,7 @@ import {
     Clock,
     TrendingUp,
     CircleDashed,
+    List,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -25,11 +26,16 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import type { IumAcademyOption } from "@/types/ium-user"
+import type { IumCodeRow } from "@/types/ium-code"
 import type {
     ConsultDetail,
     ConsultRow,
     ConsultStats,
     ConsultStatus,
+} from "@/types/consultation"
+import {
+    CONSULT_STATUS_FILTER_ORDER,
+    CONSULT_STATUS_LABEL,
 } from "@/types/consultation"
 import {
     getConsultationDetail,
@@ -39,18 +45,34 @@ import {
 import { ConsultListPanel } from "./consult-list-panel"
 import { ConsultDetailPanel } from "./consult-detail-panel"
 import { ConsultFormDialog } from "./consult-form-dialog"
+import { AdmissionConsultationHelpDialog } from "./admission-consultation-help-dialog"
 
 interface ProspectsPageClientProps {
     academies: IumAcademyOption[]
+    gradeCodes: IumCodeRow[]
+    consultStatusCodes: IumCodeRow[]
     isAdmin: boolean
     userAcademyId: number | null
 }
 
 export function ProspectsPageClient({
     academies,
+    gradeCodes,
+    consultStatusCodes,
     isAdmin,
     userAcademyId,
 }: ProspectsPageClientProps) {
+    const gradeLabelByCode = React.useMemo(
+        () => Object.fromEntries(gradeCodes.map((c) => [c.code, c.label])),
+        [gradeCodes],
+    )
+    const statusLabelByCode = React.useMemo(
+        () => ({
+            ...CONSULT_STATUS_LABEL,
+            ...Object.fromEntries(consultStatusCodes.map((c) => [c.code, c.label])),
+        }),
+        [consultStatusCodes],
+    )
     const [statusFilter, setStatusFilter] = React.useState<ConsultStatus | "ALL">("ALL")
     const [keyword, setKeyword] = React.useState("")
     const [rows, setRows] = React.useState<ConsultRow[]>([])
@@ -137,127 +159,182 @@ export function ProspectsPageClient({
 
     return (
         <div className="relative h-page-container p-0 flex flex-col gap-[3px] overflow-hidden bg-background transition-colors duration-500">
-            <Card className="h-full flex flex-col bg-card rounded-3xl border border-border shadow-card dark:shadow-none">
-                <CardHeader className="h-12 px-4 py-0 border-b border-border bg-muted/30 flex flex-row items-center justify-between space-y-0 shrink-0">
+            <Card className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden border border-border bg-card shadow-md dark:shadow-none">
+                <CardHeader className="h-12 shrink-0 space-y-0 border-b border-border bg-muted/30 px-4 py-0 flex flex-row items-center justify-between">
                     <CardTitle className="text-lg font-bold flex items-center gap-2 leading-none">
                         <UserPlus className="h-5 w-5 text-primary" />
-                        가망 고객 / 상담 관리
+                        상담 관리
                     </CardTitle>
-                    <div className="flex items-center gap-2">
-                        <div className="relative">
-                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                            <Input
-                                placeholder="학생명·신청자·전화·과목"
-                                value={keyword}
-                                onChange={(e) => setKeyword(e.target.value)}
-                                className="h-9 text-xs bg-card pl-7 pr-7 w-[220px] border-border"
-                            />
-                            {keyword && (
-                                <button
-                                    type="button"
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                                    onClick={() => setKeyword("")}
-                                    aria-label="검색어 지우기"
-                                >
-                                    <X className="h-3.5 w-3.5" />
-                                </button>
-                            )}
-                        </div>
-                        <Select
-                            value={statusFilter}
-                            onValueChange={(v) =>
-                                setStatusFilter(v as ConsultStatus | "ALL")
-                            }
-                        >
-                            <SelectTrigger className="h-9 text-xs w-[110px] bg-card">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ALL">전체</SelectItem>
-                                <SelectItem value="NEW">신규</SelectItem>
-                                <SelectItem value="IN_PROGRESS">상담중</SelectItem>
-                                <SelectItem value="WAIT">대기</SelectItem>
-                                <SelectItem value="CONVERTED">등록</SelectItem>
-                                <SelectItem value="LOST">이탈</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        {isAdmin && (
-                            <Button
-                                size="sm"
-                                className="h-9 text-xs rounded-xl"
-                                onClick={handleCreate}
-                            >
-                                <Plus className="h-3.5 w-3.5 mr-1" />
-                                상담 접수
-                            </Button>
-                        )}
-                    </div>
+                    <AdmissionConsultationHelpDialog />
                 </CardHeader>
-                <CardContent className="flex-1 min-h-0 p-4 flex flex-col gap-3 overflow-hidden">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
-                        <StatCard
-                            icon={<CircleDashed className="h-5 w-5 text-primary" />}
-                            title="신규 / 상담중"
-                            value={
-                                stats
-                                    ? `${stats.newCount + stats.inProgress}건`
-                                    : "--"
-                            }
-                            description={
-                                stats
-                                    ? `신규 ${stats.newCount} · 상담중 ${stats.inProgress}`
-                                    : ""
-                            }
-                        />
-                        <StatCard
-                            icon={<Clock className="h-5 w-5 text-amber-500" />}
-                            title="대기"
-                            value={stats ? `${stats.waiting}건` : "--"}
-                        />
-                        <StatCard
-                            icon={<Users className="h-5 w-5 text-emerald-500" />}
-                            title="등록 전환"
-                            value={stats ? `${stats.converted}명` : "--"}
-                            description={
-                                stats
-                                    ? `이탈 ${stats.lost}명`
-                                    : ""
-                            }
-                        />
-                        <StatCard
-                            icon={<TrendingUp className="h-5 w-5 text-rose-500" />}
-                            title="전환율"
-                            value={
-                                stats?.conversionRate != null
-                                    ? `${stats.conversionRate}%`
-                                    : "--%"
-                            }
-                            description={
-                                stats
-                                    ? `종결 ${stats.converted + stats.lost}건 중`
-                                    : ""
-                            }
-                        />
+                <CardContent className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden p-0">
+                    <div className="shrink-0 border-b border-border bg-muted/20 p-3">
+                        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                            <StatCard
+                                icon={<CircleDashed className="h-5 w-5 text-primary" />}
+                                title="신규 / 상담중"
+                                value={
+                                    stats
+                                        ? `${stats.newCount + stats.inProgress}건`
+                                        : "--"
+                                }
+                                description={
+                                    stats
+                                        ? `신규 ${stats.newCount} · 상담중 ${stats.inProgress}`
+                                        : ""
+                                }
+                            />
+                            <StatCard
+                                icon={<Clock className="h-5 w-5 text-amber-500" />}
+                                title="보류"
+                                value={stats ? `${stats.waiting}건` : "--"}
+                            />
+                            <StatCard
+                                icon={<Users className="h-5 w-5 text-emerald-500" />}
+                                title="등록 전환"
+                                value={stats ? `${stats.converted}명` : "--"}
+                                description={
+                                    stats ? `이탈 ${stats.lost}명` : ""
+                                }
+                            />
+                            <StatCard
+                                icon={<TrendingUp className="h-5 w-5 text-rose-500" />}
+                                title="전환율"
+                                value={
+                                    stats?.conversionRate != null
+                                        ? `${stats.conversionRate}%`
+                                        : "--%"
+                                }
+                                description={
+                                    stats
+                                        ? `종결 ${stats.converted + stats.lost}건 중`
+                                        : ""
+                                }
+                            />
+                        </div>
                     </div>
 
-                    <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-[3px]">
-                        <Card className="w-full md:w-[360px] md:shrink-0 flex flex-col rounded-2xl border border-border overflow-hidden max-h-[45vh] md:max-h-none">
-                            <ConsultListPanel
-                                rows={rows}
-                                loading={loading}
-                                selectedId={selectedId}
-                                onSelect={setSelectedId}
-                            />
-                        </Card>
-                        <Card className="flex-1 min-h-0 flex flex-col rounded-2xl border border-border overflow-hidden">
-                            <ConsultDetailPanel
-                                consult={detail}
-                                loading={detailLoading}
-                                isAdmin={isAdmin}
-                                onEdit={handleEdit}
-                                onRefresh={handleRefresh}
-                            />
-                        </Card>
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+                        <div className="flex min-h-[200px] min-w-0 flex-1 flex-col overflow-hidden border-border lg:min-h-0 lg:w-[55%] lg:border-r">
+                            <div className="flex h-10 shrink-0 flex-row items-center justify-between space-y-0 border-b border-border bg-muted/30 px-3 py-0">
+                                <div className="flex items-center gap-2">
+                                    <List className="h-4 w-4 text-primary" aria-hidden />
+                                    <span className="text-sm font-bold">상담 목록</span>
+                                </div>
+                                {isAdmin && (
+                                    <Button
+                                        size="sm"
+                                        className="h-7 rounded-md text-sm"
+                                        onClick={handleCreate}
+                                    >
+                                        <Plus className="h-3.5 w-3.5 mr-1" />
+                                        상담 접수
+                                    </Button>
+                                )}
+                            </div>
+                            <div className="shrink-0 border-b border-border bg-muted/20 p-3 dark:bg-muted/20">
+                                <div className="grid min-w-0 grid-cols-1 items-end gap-3 sm:grid-cols-[1fr_2fr_1fr]">
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[11px] text-muted-foreground leading-none">
+                                            상태
+                                        </span>
+                                        <Select
+                                            value={statusFilter}
+                                            onValueChange={(v) =>
+                                                setStatusFilter(v as ConsultStatus | "ALL")
+                                            }
+                                        >
+                                            <SelectTrigger className="h-9 border-border bg-card text-xs">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="ALL">전체</SelectItem>
+                                                {CONSULT_STATUS_FILTER_ORDER.map((s) => (
+                                                    <SelectItem key={s} value={s}>
+                                                        {statusLabelByCode[s] ?? s}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[11px] text-muted-foreground leading-none">
+                                            검색
+                                        </span>
+                                        <div className="relative">
+                                            <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                                            <Input
+                                                placeholder="학생명·신청자·전화·과목"
+                                                value={keyword}
+                                                onChange={(e) => setKeyword(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") load()
+                                                }}
+                                                className="h-9 border-border bg-card pl-7 pr-8 text-xs"
+                                            />
+                                            {keyword && (
+                                                <button
+                                                    type="button"
+                                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                                                    onClick={() => setKeyword("")}
+                                                    aria-label="검색어 지우기"
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[11px] text-muted-foreground leading-none sm:invisible">
+                                            &nbsp;
+                                        </span>
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            size="sm"
+                                            className="h-9 text-xs"
+                                            onClick={() => load()}
+                                        >
+                                            조회
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="scrollbar-hide min-h-0 flex-1 overflow-auto">
+                                <ConsultListPanel
+                                    rows={rows}
+                                    loading={loading}
+                                    selectedId={selectedId}
+                                    onSelect={setSelectedId}
+                                    gradeLabelByCode={gradeLabelByCode}
+                                    statusLabelByCode={statusLabelByCode}
+                                />
+                            </div>
+                            <div className="flex h-8 shrink-0 items-center border-t border-border bg-muted/30 px-4">
+                                <span className="text-sm text-muted-foreground">
+                                    총 {rows.length}건
+                                </span>
+                            </div>
+                        </div>
+
+                        <div
+                            className="hidden w-1 shrink-0 border-l border-border lg:block"
+                            aria-hidden
+                        />
+
+                        <div className="flex min-h-[300px] min-w-0 flex-1 flex-col overflow-hidden lg:min-h-0">
+                            <div className="flex min-h-0 flex-1 flex-col overflow-auto p-0">
+                                <ConsultDetailPanel
+                                    consult={detail}
+                                    loading={detailLoading}
+                                    isAdmin={isAdmin}
+                                    gradeLabelByCode={gradeLabelByCode}
+                                    statusLabelByCode={statusLabelByCode}
+                                    onEdit={handleEdit}
+                                    onRefresh={handleRefresh}
+                                />
+                            </div>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -267,6 +344,7 @@ export function ProspectsPageClient({
                 mode={formMode}
                 initial={formMode === "edit" ? detail : null}
                 academies={academies}
+                gradeCodes={gradeCodes}
                 isAdmin={isAdmin}
                 userAcademyId={userAcademyId}
                 onOpenChange={setFormOpen}
@@ -288,24 +366,20 @@ function StatCard({
     description?: string
 }) {
     return (
-        <Card className="rounded-2xl border border-border shadow-card">
-            <CardContent className="p-3 flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-                    {icon}
-                </div>
-                <div className="min-w-0">
-                    <p className="text-[11px] text-muted-foreground truncate">
-                        {title}
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-3 shadow-sm">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                {icon}
+            </div>
+            <div className="min-w-0">
+                <p className="truncate text-[11px] text-muted-foreground">{title}</p>
+                <p className="text-lg font-bold">{value}</p>
+                {description && (
+                    <p className="truncate text-[10px] text-muted-foreground">
+                        {description}
                     </p>
-                    <p className="text-lg font-bold">{value}</p>
-                    {description && (
-                        <p className="text-[10px] text-muted-foreground truncate">
-                            {description}
-                        </p>
-                    )}
-                </div>
-            </CardContent>
-        </Card>
+                )}
+            </div>
+        </div>
     )
 }
 

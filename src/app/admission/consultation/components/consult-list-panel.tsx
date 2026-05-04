@@ -6,10 +6,10 @@ import dayjs from "dayjs"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
+import { labelForStudentCode } from "@/lib/student-code-labels"
 import type { ConsultRow, ConsultStatus } from "@/types/consultation"
 import {
     CONSULT_SOURCE_LABEL,
-    CONSULT_STATUS_LABEL,
 } from "@/types/consultation"
 
 interface ConsultListPanelProps {
@@ -17,6 +17,8 @@ interface ConsultListPanelProps {
     loading: boolean
     selectedId: number | null
     onSelect: (id: number) => void
+    gradeLabelByCode: Record<string, string>
+    statusLabelByCode: Record<string, string>
 }
 
 const STATUS_BADGE: Record<ConsultStatus, string> = {
@@ -32,6 +34,8 @@ export function ConsultListPanel({
     loading,
     selectedId,
     onSelect,
+    gradeLabelByCode,
+    statusLabelByCode,
 }: ConsultListPanelProps) {
     if (loading) {
         return (
@@ -70,12 +74,12 @@ export function ConsultListPanel({
                                         <span className="text-sm font-semibold truncate">
                                             {row.studentName}
                                         </span>
-                                        {row.grade && (
+                                        {labelForStudentCode(row.grade, gradeLabelByCode) && (
                                             <Badge
                                                 variant="outline"
                                                 className="text-[10px] px-1 py-0 shrink-0"
                                             >
-                                                {row.grade}
+                                                {labelForStudentCode(row.grade, gradeLabelByCode)}
                                             </Badge>
                                         )}
                                     </div>
@@ -86,7 +90,7 @@ export function ConsultListPanel({
                                             STATUS_BADGE[row.status],
                                         )}
                                     >
-                                        {CONSULT_STATUS_LABEL[row.status]}
+                                        {statusLabelByCode[row.status] ?? row.status}
                                     </Badge>
                                 </div>
                                 <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground truncate">

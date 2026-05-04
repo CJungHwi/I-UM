@@ -12,12 +12,15 @@ CREATE TABLE IF NOT EXISTS ium_students (
     birthdate     DATE         NULL     COMMENT '생년월일',
     gender        CHAR(1)      NULL     COMMENT 'M/F/NULL',
     school        VARCHAR(100) NULL     COMMENT '재학 학교',
-    grade         VARCHAR(20)  NULL     COMMENT '학년(예: 중2, 고1)',
+    grade         VARCHAR(20)  NULL     COMMENT '학년 코드(ium_code STUDENT_GRADE)',
+    admission_route_code VARCHAR(40) NULL COMMENT '접수경로 코드(ium_code ADMISSION_ROUTE)',
     phone         VARCHAR(30)  NULL     COMMENT '학생 본인 연락처',
     parent_phone  VARCHAR(30)  NULL     COMMENT '기본 보호자 연락처(캐시)',
     allergy       VARCHAR(500) NULL     COMMENT '알레르기/특이사항',
     personality   VARCHAR(500) NULL     COMMENT '성격 특징 메모',
     memo          TEXT         NULL     COMMENT '기타 메모',
+    photo_url     VARCHAR(500) NULL     COMMENT '학생 사진 URL',
+    interest_tags VARCHAR(2000) NULL    COMMENT '관심 키워드(콤마 구분)',
     family_group  BIGINT       NULL     COMMENT '가족 그룹 ID(형제 묶음)',
     status        VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE/WITHDRAWN',
     enrolled_at   DATE         NULL     COMMENT '등록일(수강 시작일)',
@@ -70,6 +73,8 @@ DROP PROCEDURE IF EXISTS sp_ium_student_guardian_delete;
 DROP PROCEDURE IF EXISTS sp_ium_student_sibling_list;
 DROP PROCEDURE IF EXISTS sp_ium_student_sibling_link;
 DROP PROCEDURE IF EXISTS sp_ium_student_sibling_unlink;
+DROP PROCEDURE IF EXISTS sp_ium_student_patch_meta;
+DROP PROCEDURE IF EXISTS sp_ium_student_timeline;
 
 DELIMITER $$
 
@@ -88,8 +93,16 @@ BEGIN
         s.gender,
         s.school,
         s.grade,
+        s.admission_route_code AS admissionRouteCode,
         s.phone,
         s.parent_phone AS parentPhone,
+        s.photo_url    AS photoUrl,
+        s.interest_tags AS interestTags,
+        (SELECT GROUP_CONCAT(DISTINCT c.name ORDER BY c.name SEPARATOR ' · ')
+           FROM ium_class_enrollment e
+           INNER JOIN ium_class c ON c.id = e.class_id AND c.del_yn = 'N'
+          WHERE e.student_id = s.id AND e.status = 'ACTIVE' AND e.left_at IS NULL
+        ) AS currentClassNames,
         s.family_group AS familyGroup,
         s.status,
         s.enrolled_at  AS enrolledAt,
@@ -108,7 +121,8 @@ BEGIN
       AND (p_keyword IS NULL OR p_keyword = ''
            OR s.name   LIKE CONCAT('%', p_keyword, '%')
            OR s.school LIKE CONCAT('%', p_keyword, '%')
-           OR s.phone  LIKE CONCAT('%', p_keyword, '%'))
+           OR s.phone  LIKE CONCAT('%', p_keyword, '%')
+           OR s.interest_tags LIKE CONCAT('%', p_keyword, '%'))
     ORDER BY
         FIELD(s.status, 'ACTIVE', 'WITHDRAWN'),
         s.name ASC;
@@ -130,8 +144,16 @@ BEGIN
         s.gender,
         s.school,
         s.grade,
+        s.admission_route_code AS admissionRouteCode,
         s.phone,
         s.parent_phone AS parentPhone,
+        s.photo_url    AS photoUrl,
+        s.interest_tags AS interestTags,
+        (SELECT GROUP_CONCAT(DISTINCT c.name ORDER BY c.name SEPARATOR ' · ')
+           FROM ium_class_enrollment e
+           INNER JOIN ium_class c ON c.id = e.class_id AND c.del_yn = 'N'
+          WHERE e.student_id = s.id AND e.status = 'ACTIVE' AND e.left_at IS NULL
+        ) AS currentClassNames,
         s.family_group AS familyGroup,
         s.status,
         s.enrolled_at  AS enrolledAt,
@@ -151,7 +173,8 @@ BEGIN
       AND (p_keyword IS NULL OR p_keyword = ''
            OR s.name   LIKE CONCAT('%', p_keyword, '%')
            OR s.school LIKE CONCAT('%', p_keyword, '%')
-           OR s.phone  LIKE CONCAT('%', p_keyword, '%'))
+           OR s.phone  LIKE CONCAT('%', p_keyword, '%')
+           OR s.interest_tags LIKE CONCAT('%', p_keyword, '%'))
     ORDER BY
         FIELD(s.status, 'ACTIVE', 'WITHDRAWN'),
         s.name ASC;
@@ -170,8 +193,16 @@ BEGIN
         s.gender,
         s.school,
         s.grade,
+        s.admission_route_code AS admissionRouteCode,
         s.phone,
         s.parent_phone AS parentPhone,
+        s.photo_url    AS photoUrl,
+        s.interest_tags AS interestTags,
+        (SELECT GROUP_CONCAT(DISTINCT c.name ORDER BY c.name SEPARATOR ' · ')
+           FROM ium_class_enrollment e
+           INNER JOIN ium_class c ON c.id = e.class_id AND c.del_yn = 'N'
+          WHERE e.student_id = s.id AND e.status = 'ACTIVE' AND e.left_at IS NULL
+        ) AS currentClassNames,
         s.allergy,
         s.personality,
         s.memo,
@@ -193,11 +224,14 @@ CREATE PROCEDURE sp_ium_student_create(
     IN p_gender       CHAR(1),
     IN p_school       VARCHAR(100),
     IN p_grade        VARCHAR(20),
+    IN p_admission_route_code VARCHAR(40),
     IN p_phone        VARCHAR(30),
     IN p_parent_phone VARCHAR(30),
     IN p_allergy      VARCHAR(500),
     IN p_personality  VARCHAR(500),
     IN p_memo         TEXT,
+    IN p_photo_url    VARCHAR(500),
+    IN p_interest_tags VARCHAR(2000),
     IN p_enrolled_at  DATE
 )
 BEGIN
@@ -217,14 +251,18 @@ BEGIN
     END IF;
 
     INSERT INTO ium_students
-        (academy_id, name, birthdate, gender, school, grade, phone, parent_phone,
-         allergy, personality, memo, status, enrolled_at)
+        (academy_id, name, birthdate, gender, school, grade, admission_route_code, phone, parent_phone,
+         allergy, personality, memo, photo_url, interest_tags, status, enrolled_at)
     VALUES
         (p_academy_id, TRIM(p_name), p_birthdate, NULLIF(p_gender, ''),
          NULLIF(TRIM(p_school), ''), NULLIF(TRIM(p_grade), ''),
+         NULLIF(TRIM(p_admission_route_code), ''),
          NULLIF(TRIM(p_phone), ''), NULLIF(TRIM(p_parent_phone), ''),
          NULLIF(TRIM(p_allergy), ''), NULLIF(TRIM(p_personality), ''),
-         NULLIF(p_memo, ''), 'ACTIVE', p_enrolled_at);
+         NULLIF(p_memo, ''),
+         NULLIF(TRIM(p_photo_url), ''),
+         NULLIF(TRIM(p_interest_tags), ''),
+         'ACTIVE', p_enrolled_at);
 
     SELECT LAST_INSERT_ID() AS id;
 END$$
@@ -236,11 +274,14 @@ CREATE PROCEDURE sp_ium_student_update(
     IN p_gender       CHAR(1),
     IN p_school       VARCHAR(100),
     IN p_grade        VARCHAR(20),
+    IN p_admission_route_code VARCHAR(40),
     IN p_phone        VARCHAR(30),
     IN p_parent_phone VARCHAR(30),
     IN p_allergy      VARCHAR(500),
     IN p_personality  VARCHAR(500),
     IN p_memo         TEXT,
+    IN p_photo_url    VARCHAR(500),
+    IN p_interest_tags VARCHAR(2000),
     IN p_enrolled_at  DATE
 )
 BEGIN
@@ -254,11 +295,14 @@ BEGIN
            gender       = NULLIF(p_gender, ''),
            school       = NULLIF(TRIM(p_school), ''),
            grade        = NULLIF(TRIM(p_grade), ''),
+           admission_route_code = NULLIF(TRIM(p_admission_route_code), ''),
            phone        = NULLIF(TRIM(p_phone), ''),
            parent_phone = NULLIF(TRIM(p_parent_phone), ''),
            allergy      = NULLIF(TRIM(p_allergy), ''),
            personality  = NULLIF(TRIM(p_personality), ''),
            memo         = NULLIF(p_memo, ''),
+           photo_url    = NULLIF(TRIM(p_photo_url), ''),
+           interest_tags = NULLIF(TRIM(p_interest_tags), ''),
            enrolled_at  = p_enrolled_at
      WHERE id = p_id AND del_yn = 'N';
 
@@ -474,6 +518,76 @@ BEGIN
     END IF;
 
     SELECT ROW_COUNT() AS affected;
+END$$
+
+-- 사진·관심 키워드만 빠르게 갱신
+CREATE PROCEDURE sp_ium_student_patch_meta(
+    IN p_id BIGINT,
+    IN p_photo_url VARCHAR(500),
+    IN p_interest_tags VARCHAR(2000)
+)
+BEGIN
+    UPDATE ium_students
+       SET photo_url     = NULLIF(TRIM(p_photo_url), ''),
+           interest_tags = NULLIF(TRIM(p_interest_tags), '')
+     WHERE id = p_id AND del_yn = 'N';
+
+    SELECT ROW_COUNT() AS affected;
+END$$
+
+-- 성장 타임라인 (상담·레벨테스트·반 배정/종료)
+CREATE PROCEDURE sp_ium_student_timeline(IN p_student_id BIGINT)
+BEGIN
+    SELECT kind, evtAt, title, subtitle, bodyText, refId
+    FROM (
+        SELECT 'CONSULT' AS kind,
+               COALESCE(c.resolved_at, c.requested_at) AS evtAt,
+               CONCAT('상담 카드 · ',
+                  CASE c.status
+                    WHEN 'NEW' THEN '신규'
+                    WHEN 'IN_PROGRESS' THEN '진행중'
+                    WHEN 'WAIT' THEN '보류'
+                    WHEN 'CONVERTED' THEN '등록 완료'
+                    WHEN 'LOST' THEN '이탈'
+                    ELSE c.status
+                  END) AS title,
+               c.student_name AS subtitle,
+               LEFT(TRIM(CONCAT_WS(CHAR(10),
+                 NULLIF(c.memo, ''),
+                 NULLIF(c.special_requests, ''))), 800) AS bodyText,
+               c.id AS refId
+        FROM ium_consultation c
+        WHERE c.converted_student_id = p_student_id AND c.del_yn = 'N'
+
+        UNION ALL
+
+        SELECT 'LEVEL_TEST' AS kind,
+               lt.tested_at AS evtAt,
+               CONCAT(lt.subject, ' 레벨 테스트') AS title,
+               lt.level_result AS subtitle,
+               TRIM(CONCAT(
+                 IF(lt.score IS NOT NULL, CONCAT('점수 ', lt.score), ''),
+                 IF(lt.memo IS NOT NULL AND TRIM(lt.memo) <> '',
+                    CONCAT(IF(lt.score IS NOT NULL, ' · ', ''), TRIM(lt.memo)), '')
+               )) AS bodyText,
+               lt.id AS refId
+        FROM ium_level_test lt
+        WHERE lt.student_id = p_student_id
+
+        UNION ALL
+
+        SELECT IF(e.left_at IS NULL, 'CLASS_IN', 'CLASS_OUT') AS kind,
+               IFNULL(e.left_at, e.enrolled_at) AS evtAt,
+               CONCAT(IF(e.left_at IS NULL, '반 배정', '반 종료'), ' · ', cl.name) AS title,
+               cl.subject AS subtitle,
+               IFNULL(cl.schedule_note, '') AS bodyText,
+               e.id AS refId
+        FROM ium_class_enrollment e
+        INNER JOIN ium_class cl ON cl.id = e.class_id AND cl.del_yn = 'N'
+        WHERE e.student_id = p_student_id
+    ) x
+    WHERE x.evtAt IS NOT NULL
+    ORDER BY x.evtAt DESC;
 END$$
 
 DELIMITER ;

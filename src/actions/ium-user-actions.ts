@@ -3,7 +3,7 @@
 import { callProcedure } from "@/lib/db"
 import { auth } from "@/auth"
 import { isAcademyAdmin, isSystemAdmin } from "@/lib/ium-user"
-import { getAcademyIdForIumUser } from "@/lib/server/ium-user-repo"
+import { getAcademyIdForIumUser, getIumUserApprovalContext } from "@/lib/server/ium-user-repo"
 import { sendNotificationRaw } from "@/lib/server/notifications"
 import { hashPassword } from "@/lib/password"
 import type { ServerActionResult } from "@/types"
@@ -57,6 +57,64 @@ function mapAcademyOption(r: any): IumAcademyOption {
         id: Number(r.id ?? r.f0 ?? 0),
         academyName: String(r.academyName ?? r.academy_name ?? r.f1 ?? ""),
     }
+}
+
+/**
+ * 가입 승인/반려 권한
+ * - ACADEMY_ADMIN + PENDING: Super Admin만 (신규 학원 대표 가입)
+ * - ACADEMY_MEMBER + PENDING: 해당 학원 ACADEMY_ADMIN만 (Staff)
+ */
+function approvalActorCheck(
+    gate: { role: IumUserRole; academyId: number | null },
+    target: { academyId: number | null; role: IumUserRole; approvalStatus: IumApprovalStatus },
+    action: "approve" | "reject",
+): ServerActionResult<never> | null {
+    if (target.approvalStatus !== "PENDING") {
+        return { success: false, error: "승인 대기(PENDING) 상태의 사용자만 처리할 수 있습니다." }
+    }
+
+    if (target.role === "ACADEMY_ADMIN") {
+        if (!isSystemAdmin(gate.role)) {
+            return {
+                success: false,
+                error:
+                    action === "approve"
+                        ? "신규 학원 관리자 가입은 시스템(Super) 관리자만 승인할 수 있습니다."
+                        : "신규 학원 관리자 신청 반려는 시스템(Super) 관리자만 할 수 있습니다.",
+            }
+        }
+        return null
+    }
+
+    if (target.role === "ACADEMY_MEMBER") {
+        if (isSystemAdmin(gate.role)) {
+            return {
+                success: false,
+                error:
+                    action === "approve"
+                        ? "학원 담당자(Staff) 가입은 해당 학원 원장(학원 Admin)만 승인할 수 있습니다."
+                        : "해당 신청 반려도 학원 원장이 처리해야 합니다.",
+            }
+        }
+        if (
+            !isAcademyAdmin(gate.role) ||
+            gate.academyId == null ||
+            target.academyId == null ||
+            target.academyId !== gate.academyId
+        ) {
+            return { success: false, error: "소속 학원의 원장(학원 Admin)만 이 사용자를 처리할 수 있습니다." }
+        }
+        return null
+    }
+
+    if (target.role === "SYSTEM_ADMIN") {
+        if (!isSystemAdmin(gate.role)) {
+            return { success: false, error: "처리 권한이 없습니다." }
+        }
+        return null
+    }
+
+    return null
 }
 
 /** 회원가입 화면용: 활성 학원 목록 (인증 불필요) */
@@ -160,7 +218,15 @@ export async function approveIumUser(userId: number): Promise<ServerActionResult
     const gate = await getManageGate()
     if (!("userId" in gate)) return gate
     try {
-        const targetAcademyId = await getAcademyIdForIumUser(userId)
+        const ctx = await getIumUserApprovalContext(userId)
+        if (!ctx) {
+            return { success: false, error: "대상 사용자를 찾을 수 없습니다." }
+        }
+        const targetAcademyId = ctx.academyId
+
+        const roleBlock = approvalActorCheck(gate, ctx, "approve")
+        if (roleBlock) return roleBlock
+
         if (
             !isSystemAdmin(gate.role) &&
             gate.academyId != null &&
@@ -169,6 +235,17 @@ export async function approveIumUser(userId: number): Promise<ServerActionResult
             return { success: false, error: "소속 학원 사용자만 처리할 수 있습니다." }
         }
         await callProcedure<any>("sp_ium_approve_user", userId)
+
+        /* 신규 학원 과금 — Super Admin이 학원 관리자(ACADEMY_ADMIN) 승인 직후 PG 연동 시 주석 해제
+        if (isSystemAdmin(gate.role) && ctx.role === "ACADEMY_ADMIN" && targetAcademyId) {
+            const { startAcademyBillingAfterAdminApproval } = await import("@/lib/ium-academy-billing")
+            await startAcademyBillingAfterAdminApproval({
+                academyId: targetAcademyId,
+                adminUserId: userId,
+            })
+        }
+        */
+
         const n =
             targetAcademyId != null
                 ? await sendNotificationRaw(
@@ -209,7 +286,15 @@ export async function rejectIumUser(userId: number): Promise<ServerActionResult>
     const gate = await getManageGate()
     if (!("userId" in gate)) return gate
     try {
-        const targetAcademyId = await getAcademyIdForIumUser(userId)
+        const ctx = await getIumUserApprovalContext(userId)
+        if (!ctx) {
+            return { success: false, error: "대상 사용자를 찾을 수 없습니다." }
+        }
+        const targetAcademyId = ctx.academyId
+
+        const roleBlock = approvalActorCheck(gate, ctx, "reject")
+        if (roleBlock) return roleBlock
+
         if (
             !isSystemAdmin(gate.role) &&
             gate.academyId != null &&
@@ -252,5 +337,159 @@ export async function setIumUserRole(
         }
         console.error("setIumUserRole:", e)
         return { success: false, error: "사용자 레벨 변경에 실패했습니다." }
+    }
+}
+
+/** 초대 코드로 소속 학원 미리보기 (회원가입 UI용) */
+export async function resolveInviteCodePreview(
+    inviteCode: string,
+): Promise<ServerActionResult<{ academyId: number; academyName: string }>> {
+    const c = inviteCode.trim()
+    if (!c) {
+        return { success: false, error: "초대 코드를 입력하세요." }
+    }
+    try {
+        const rows = await callProcedure<{
+            academyId?: number
+            academyName?: string
+        }>("sp_ium_resolve_invite_code", c)
+        const row = rows?.[0]
+        const academyId = Number(row?.academyId ?? 0)
+        if (!academyId) {
+            return { success: false, error: "유효하지 않은 초대 코드입니다." }
+        }
+        return {
+            success: true,
+            data: {
+                academyId,
+                academyName: String(row?.academyName ?? ""),
+            },
+        }
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e)
+        if (msg.includes("sp_ium_resolve_invite_code") || msg.includes("doesn't exist")) {
+            return {
+                success: false,
+                error:
+                    "초대 코드 기능을 사용하려면 DB 스키마·프로시저를 적용해야 합니다. prisma/migrations/add_ium_academy_invite_register_paths.sql 및 prisma/procedures/ium_register_extensions.sql 을 실행하세요.",
+            }
+        }
+        console.error("resolveInviteCodePreview:", e)
+        return { success: false, error: "초대 코드를 확인할 수 없습니다." }
+    }
+}
+
+/** 신규 학원 생성 + 해당 학원 관리자(승인 대기) 한 번에 등록 */
+export async function registerNewAcademyWithAdmin(
+    academyName: string,
+    loginId: string,
+    plainPassword: string,
+    name: string,
+    email: string | null,
+): Promise<ServerActionResult<{ academyId: number; inviteCode: string }>> {
+    const an = academyName.trim()
+    const id = loginId.trim()
+    const nm = name.trim()
+    if (!an) {
+        return { success: false, error: "학원 이름을 입력하세요." }
+    }
+    if (!id || !plainPassword || plainPassword.length < 8) {
+        return { success: false, error: "비밀번호는 8자 이상이어야 합니다." }
+    }
+    if (!nm) {
+        return { success: false, error: "이름을 입력하세요." }
+    }
+    try {
+        const passwordHash = await hashPassword(plainPassword)
+        const rows = await callProcedure<{
+            academyId?: number
+            inviteCode?: string
+        }>("sp_ium_register_new_academy_and_admin", an, id, passwordHash, nm, email?.trim() ?? "")
+        const row = rows?.[0]
+        const academyId = Number(row?.academyId ?? 0)
+        const inviteCode = String(row?.inviteCode ?? "")
+        if (!academyId || !inviteCode) {
+            return { success: false, error: "학원·관리자 등록 처리에 실패했습니다." }
+        }
+        return { success: true, data: { academyId, inviteCode } }
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e)
+        if (msg.includes("DUPLICATE_LOGIN_ID") || msg.includes("Duplicate")) {
+            return { success: false, error: "이미 사용 중인 아이디입니다." }
+        }
+        if (msg.includes("EMPTY_ACADEMY_NAME")) {
+            return { success: false, error: "학원 이름을 입력하세요." }
+        }
+        if (msg.includes("sp_ium_register_new_academy_and_admin") || msg.includes("doesn't exist")) {
+            return {
+                success: false,
+                error:
+                    "신규 학원 가입 기능을 사용하려면 DB 프로시저를 적용하세요. prisma/procedures/ium_register_extensions.sql",
+            }
+        }
+        if (msg.includes("Unknown column") && msg.includes("invite_code")) {
+            return {
+                success: false,
+                error:
+                    "ium_academies.invite_code 컬럼이 필요합니다. prisma/migrations/add_ium_academy_invite_register_paths.sql 을 실행하세요.",
+            }
+        }
+        console.error("registerNewAcademyWithAdmin:", e)
+        return { success: false, error: "가입 처리 중 오류가 발생했습니다." }
+    }
+}
+
+/** 초대 코드로 학원 담당자(강사/스태프, 승인 대기) 가입 */
+export async function registerIumUserByInviteCode(
+    loginId: string,
+    plainPassword: string,
+    name: string,
+    email: string | null,
+    inviteCode: string,
+): Promise<ServerActionResult<{ id: number }>> {
+    const id = loginId.trim()
+    const nm = name.trim()
+    const inv = inviteCode.trim()
+    if (!id || !plainPassword || plainPassword.length < 8) {
+        return { success: false, error: "비밀번호는 8자 이상이어야 합니다." }
+    }
+    if (!nm) {
+        return { success: false, error: "이름을 입력하세요." }
+    }
+    if (!inv) {
+        return { success: false, error: "초대 코드를 입력하세요." }
+    }
+    try {
+        const passwordHash = await hashPassword(plainPassword)
+        const rows = await callProcedure<{ id?: number }>(
+            "sp_ium_register_by_invite_code",
+            id,
+            passwordHash,
+            nm,
+            email?.trim() ?? "",
+            inv,
+        )
+        const newId = Number(rows?.[0]?.id ?? 0)
+        if (!newId) {
+            return { success: false, error: "회원가입 처리에 실패했습니다." }
+        }
+        return { success: true, data: { id: newId } }
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e)
+        if (msg.includes("DUPLICATE_LOGIN_ID") || msg.includes("Duplicate")) {
+            return { success: false, error: "이미 사용 중인 아이디입니다." }
+        }
+        if (msg.includes("INVALID_INVITE_CODE")) {
+            return { success: false, error: "유효하지 않은 초대 코드입니다." }
+        }
+        if (msg.includes("sp_ium_register_by_invite_code") || msg.includes("doesn't exist")) {
+            return {
+                success: false,
+                error:
+                    "초대 가입 기능을 사용하려면 DB 프로시저를 적용하세요. prisma/procedures/ium_register_extensions.sql",
+            }
+        }
+        console.error("registerIumUserByInviteCode:", e)
+        return { success: false, error: "가입 처리 중 오류가 발생했습니다." }
     }
 }

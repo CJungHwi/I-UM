@@ -37,9 +37,9 @@ import type {
 import {
     CONSULT_SOURCE_LABEL,
     CONSULT_STATUS_FLOW,
-    CONSULT_STATUS_LABEL,
 } from "@/types/consultation"
 import { cn } from "@/lib/utils"
+import { labelForStudentCode } from "@/lib/student-code-labels"
 import {
     addConsultationLog,
     convertConsultationToStudent,
@@ -48,11 +48,14 @@ import {
     setConsultationStatus,
 } from "@/actions/consultation-actions"
 import { LevelTestSection } from "./level-test-section"
+import { ConsultDetailManagement } from "./consult-detail-management"
 
 interface ConsultDetailPanelProps {
     consult: ConsultDetail | null
     loading: boolean
     isAdmin: boolean
+    gradeLabelByCode: Record<string, string>
+    statusLabelByCode: Record<string, string>
     onEdit: () => void
     onRefresh: () => Promise<void>
 }
@@ -84,6 +87,8 @@ export function ConsultDetailPanel({
     consult,
     loading,
     isAdmin,
+    gradeLabelByCode,
+    statusLabelByCode,
     onEdit,
     onRefresh,
 }: ConsultDetailPanelProps) {
@@ -107,6 +112,7 @@ export function ConsultDetailPanel({
     }
 
     const isResolved = consult.status === "CONVERTED" || consult.status === "LOST"
+    const gradeDisplay = labelForStudentCode(consult.grade, gradeLabelByCode)
 
     const handleQuickStatus = async (next: ConsultStatus) => {
         if (!isAdmin) return
@@ -114,7 +120,7 @@ export function ConsultDetailPanel({
         const res = await setConsultationStatus(consult.id, next)
         setBusy(false)
         if (res.success) {
-            toast.success(`상태를 ‘${CONSULT_STATUS_LABEL[next]}’로 변경했습니다.`)
+            toast.success(`상태를 ‘${statusLabelByCode[next] ?? next}’로 변경했습니다.`)
             await onRefresh()
         } else {
             toast.error(res.error)
@@ -163,11 +169,11 @@ export function ConsultDetailPanel({
                             STATUS_BADGE[consult.status],
                         )}
                     >
-                        {CONSULT_STATUS_LABEL[consult.status]}
+                        {statusLabelByCode[consult.status] ?? consult.status}
                     </Badge>
-                    {consult.grade && (
+                    {gradeDisplay && (
                         <Badge variant="secondary" className="text-[10px]">
-                            {consult.grade}
+                            {gradeDisplay}
                         </Badge>
                     )}
                     {consult.convertedStudentId && (
@@ -229,6 +235,7 @@ export function ConsultDetailPanel({
                                 <CardContent className="p-3 flex flex-wrap items-center gap-2">
                                     <StatusStepper
                                         current={consult.status}
+                                        statusLabelByCode={statusLabelByCode}
                                         onClick={isAdmin ? handleQuickStatus : undefined}
                                         disabled={busy}
                                     />
@@ -250,7 +257,7 @@ export function ConsultDetailPanel({
                                         disabled={busy || !!consult.convertedStudentId}
                                     >
                                         <CheckCircle2 className="h-3 w-3 mr-1" />
-                                        학생 등록 전환
+                                        등록 완료
                                     </Button>
                                 </CardContent>
                             </Card>
@@ -259,6 +266,9 @@ export function ConsultDetailPanel({
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-1">
                             <Field label="접수 경로">
                                 {CONSULT_SOURCE_LABEL[consult.source]}
+                                {consult.channelDetail
+                                    ? ` (${consult.channelDetail})`
+                                    : ""}
                             </Field>
                             <Field label="접수 일시">
                                 {dayjs(consult.requestedAt).isValid()
@@ -278,15 +288,25 @@ export function ConsultDetailPanel({
                                 {consult.counselorName ?? "—"}
                             </Field>
                             <Field label="학년">
-                                {consult.grade ?? "—"}
+                                {gradeDisplay || "—"}
+                            </Field>
+                            <Field label="학교 (진단)">
+                                {consult.consultSchool ?? "—"}
                             </Field>
                             <Field label="희망 과목">
                                 {consult.subject ?? "—"}
                             </Field>
-                            <Field label="희망 일정">
+                            <Field label="희망 수업 요일·시간">
                                 {consult.preferSchedule ?? "—"}
                             </Field>
+                            <Field label="다음 연락 예정">
+                                {consult.nextContactAt && dayjs(consult.nextContactAt).isValid()
+                                    ? dayjs(consult.nextContactAt).format("YYYY-MM-DD HH:mm")
+                                    : "—"}
+                            </Field>
                         </div>
+
+                        <ConsultDetailManagement consult={consult} />
 
                         <div className="flex flex-col gap-1 p-1">
                             <span className="text-[11px] text-muted-foreground">
@@ -311,6 +331,7 @@ export function ConsultDetailPanel({
                     <HistoryTab
                         consultId={consult.id}
                         isAdmin={isAdmin}
+                        statusLabelByCode={statusLabelByCode}
                     />
                 </TabsContent>
             </Tabs>
@@ -318,6 +339,7 @@ export function ConsultDetailPanel({
             <ConvertDialog
                 open={convertOpen}
                 consult={consult}
+                gradeLabelByCode={gradeLabelByCode}
                 onOpenChange={setConvertOpen}
                 onDone={async () => {
                     setConvertOpen(false)
@@ -330,10 +352,12 @@ export function ConsultDetailPanel({
 
 function StatusStepper({
     current,
+    statusLabelByCode,
     onClick,
     disabled,
 }: {
     current: ConsultStatus
+    statusLabelByCode: Record<string, string>
     onClick?: (s: ConsultStatus) => void
     disabled?: boolean
 }) {
@@ -365,7 +389,7 @@ function StatusStepper({
                                 isConverted && "cursor-not-allowed",
                             )}
                         >
-                            {CONSULT_STATUS_LABEL[s]}
+                            {statusLabelByCode[s] ?? s}
                         </button>
                         {idx < CONSULT_STATUS_FLOW.length - 1 && (
                             <ArrowRight className="h-3 w-3 text-muted-foreground" />
@@ -380,9 +404,11 @@ function StatusStepper({
 function HistoryTab({
     consultId,
     isAdmin,
+    statusLabelByCode,
 }: {
     consultId: number
     isAdmin: boolean
+    statusLabelByCode: Record<string, string>
 }) {
     const [logs, setLogs] = React.useState<ConsultLog[]>([])
     const [loading, setLoading] = React.useState(true)
@@ -468,9 +494,9 @@ function HistoryTab({
                                                 )}
                                             >
                                                 {log.oldStatus
-                                                    ? `${CONSULT_STATUS_LABEL[log.oldStatus]} → `
+                                                    ? `${statusLabelByCode[log.oldStatus] ?? log.oldStatus} → `
                                                     : ""}
-                                                {CONSULT_STATUS_LABEL[log.newStatus]}
+                                                {statusLabelByCode[log.newStatus] ?? log.newStatus}
                                             </Badge>
                                         ) : (
                                             <Badge
@@ -507,11 +533,13 @@ function HistoryTab({
 function ConvertDialog({
     open,
     consult,
+    gradeLabelByCode,
     onOpenChange,
     onDone,
 }: {
     open: boolean
     consult: ConsultDetail
+    gradeLabelByCode: Record<string, string>
     onOpenChange: (v: boolean) => void
     onDone: () => void | Promise<void>
 }) {
@@ -542,17 +570,19 @@ function ConvertDialog({
         }
     }
 
+    const gradeSummary = labelForStudentCode(consult.grade, gradeLabelByCode)
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[420px]">
                 <DialogHeader className="h-12 px-4 py-0 border-b border-border bg-muted/30 -mx-6 -mt-6 flex flex-row items-center space-y-0">
                     <DialogTitle className="text-lg font-bold leading-none">
-                        학생 등록 전환
+                        등록 완료 (재원생 명부로 이관)
                     </DialogTitle>
                 </DialogHeader>
                 <div className="flex flex-col gap-3 pt-2">
                     <p className="text-xs text-muted-foreground">
-                        상담 내용을 바탕으로 학생 마스터(`재원생 명부`)에 자동 등록합니다.
+                        상담 카드 정보를 바탕으로 재원생 명부에 학생을 등록합니다.
                         보호자 연락처는 대표 보호자로 함께 등록됩니다.
                     </p>
                     <div className="flex flex-col gap-1">
@@ -568,7 +598,7 @@ function ConvertDialog({
                         <div>
                             <span className="text-muted-foreground">학생: </span>
                             {consult.studentName}
-                            {consult.grade ? ` (${consult.grade})` : ""}
+                            {gradeSummary ? ` (${gradeSummary})` : ""}
                         </div>
                         <div>
                             <span className="text-muted-foreground">학원: </span>
@@ -590,7 +620,7 @@ function ConvertDialog({
                         취소
                     </Button>
                     <Button onClick={handleConvert} disabled={busy}>
-                        {busy ? "전환 중..." : "등록"}
+                        {busy ? "처리 중..." : "등록 완료"}
                     </Button>
                 </DialogFooter>
             </DialogContent>

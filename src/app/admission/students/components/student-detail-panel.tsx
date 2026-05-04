@@ -10,14 +10,19 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { StudentDetail, StudentRow } from "@/types/student"
 import { deleteStudent, setStudentStatus } from "@/actions/student-actions"
+import { labelForStudentCode } from "@/lib/student-code-labels"
 import { GuardianSection } from "./guardian-section"
 import { SiblingSection } from "./sibling-section"
+import { StudentInterestTagsTab } from "./student-interest-tags-tab"
+import { StudentTimelineTab } from "./student-timeline-tab"
 
 interface StudentDetailPanelProps {
     student: StudentDetail | null
     loading: boolean
     isAdmin: boolean
     rows: StudentRow[]
+    gradeLabelByCode: Record<string, string>
+    routeLabelByCode: Record<string, string>
     onEdit: () => void
     onRefresh: () => Promise<void>
 }
@@ -42,6 +47,8 @@ export function StudentDetailPanel({
     loading,
     isAdmin,
     rows,
+    gradeLabelByCode,
+    routeLabelByCode,
     onEdit,
     onRefresh,
 }: StudentDetailPanelProps) {
@@ -62,6 +69,12 @@ export function StudentDetailPanel({
             </div>
         )
     }
+
+    const gradeDisplay = labelForStudentCode(student.grade, gradeLabelByCode)
+    const routeDisplay = labelForStudentCode(
+        student.admissionRouteCode,
+        routeLabelByCode,
+    )
 
     const handleToggleStatus = async () => {
         if (!isAdmin) return
@@ -113,9 +126,9 @@ export function StudentDetailPanel({
                             재원
                         </Badge>
                     )}
-                    {student.grade && (
+                    {gradeDisplay && (
                         <Badge variant="secondary" className="text-[10px]">
-                            {student.grade}
+                            {gradeDisplay}
                         </Badge>
                     )}
                 </div>
@@ -163,16 +176,29 @@ export function StudentDetailPanel({
             </div>
 
             <Tabs defaultValue="profile" className="flex-1 min-h-0 flex flex-col p-3 gap-2">
-                <TabsList className="w-full">
-                    <TabsTrigger value="profile" className="flex-1">프로필</TabsTrigger>
-                    <TabsTrigger value="family" className="flex-1">가족·형제</TabsTrigger>
-                    <TabsTrigger value="memo" className="flex-1">메모</TabsTrigger>
+                <TabsList className="w-full grid grid-cols-2 sm:grid-cols-5 h-auto gap-1 p-1">
+                    <TabsTrigger value="profile" className="text-xs">
+                        프로필
+                    </TabsTrigger>
+                    <TabsTrigger value="tags" className="text-xs">
+                        관심 키워드
+                    </TabsTrigger>
+                    <TabsTrigger value="timeline" className="text-xs">
+                        성장 타임라인
+                    </TabsTrigger>
+                    <TabsTrigger value="family" className="text-xs">
+                        가족·형제
+                    </TabsTrigger>
+                    <TabsTrigger value="memo" className="text-xs">
+                        메모
+                    </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="profile" className="overflow-auto">
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-1">
                         <Field label="소속 학원">{student.academyName ?? "—"}</Field>
-                        <Field label="학년">{student.grade ?? "—"}</Field>
+                        <Field label="학년">{gradeDisplay || "—"}</Field>
+                        <Field label="접수 경로">{routeDisplay || "—"}</Field>
                         <Field label="학교">{student.school ?? "—"}</Field>
                         <Field label="생년월일">
                             {student.birthdate
@@ -193,12 +219,43 @@ export function StudentDetailPanel({
                                 ? dayjs(student.enrolledAt).format("YYYY-MM-DD")
                                 : "—"}
                         </Field>
+                        <Field label="현재 수강 반">
+                            {student.currentClassNames ?? "—"}
+                        </Field>
+                        <Field label="프로필 사진 URL">
+                            {student.photoUrl ? (
+                                <a
+                                    href={student.photoUrl}
+                                    className="text-primary hover:underline truncate block"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    링크 열기
+                                </a>
+                            ) : (
+                                "—"
+                            )}
+                        </Field>
                         <Field label="상태">
                             {student.status === "ACTIVE" ? "재원" : "퇴원"}
                             {student.withdrawnAt &&
                                 ` (${dayjs(student.withdrawnAt).format("YYYY-MM-DD")})`}
                         </Field>
                     </div>
+                </TabsContent>
+
+                <TabsContent value="tags" className="overflow-auto">
+                    <StudentInterestTagsTab
+                        studentId={student.id}
+                        photoUrl={student.photoUrl}
+                        interestTags={student.interestTags}
+                        isAdmin={isAdmin}
+                        onSaved={onRefresh}
+                    />
+                </TabsContent>
+
+                <TabsContent value="timeline" className="overflow-auto">
+                    <StudentTimelineTab studentId={student.id} />
                 </TabsContent>
 
                 <TabsContent value="family" className="overflow-auto">
@@ -211,6 +268,7 @@ export function StudentDetailPanel({
                             student={student}
                             rows={rows}
                             isAdmin={isAdmin}
+                            gradeLabelByCode={gradeLabelByCode}
                             onChanged={onRefresh}
                         />
                     </div>

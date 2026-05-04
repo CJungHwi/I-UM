@@ -1,6 +1,15 @@
 import "server-only"
 import type { ConnectionOptions, Pool } from "mysql2/promise"
 
+declare global {
+    // Keep the MySQL pool stable across Next.js dev HMR/module reloads.
+    // Without this, Turbopack can create new pools until MySQL rejects connections.
+    // eslint-disable-next-line no-var
+    var __iumMysqlPool: Pool | null | undefined
+    // eslint-disable-next-line no-var
+    var __iumMysqlPoolPromise: Promise<Pool> | null | undefined
+}
+
 // DATABASE 연결 정보 생성 함수
 function getDatabaseConfig(): ConnectionOptions {
     // DATABASE_URL이 직접 설정되어 있으면 파싱
@@ -25,22 +34,25 @@ function getDatabaseConfig(): ConnectionOptions {
     }
 }
 
-let pool: Pool | null = null
-
 async function getPool(): Promise<Pool> {
-    if (pool) return pool
+    if (globalThis.__iumMysqlPool) return globalThis.__iumMysqlPool
+    if (globalThis.__iumMysqlPoolPromise) return globalThis.__iumMysqlPoolPromise
 
-    const mysql = await import("mysql2/promise")
-    pool = mysql.createPool({
-        ...getDatabaseConfig(),
-        waitForConnections: true,
-        connectionLimit: 10,
-        queueLimit: 0,
-        enableKeepAlive: true,
-        keepAliveInitialDelay: 0,
+    globalThis.__iumMysqlPoolPromise = import("mysql2/promise").then((mysql) => {
+        const nextPool = mysql.createPool({
+            ...getDatabaseConfig(),
+            waitForConnections: true,
+            connectionLimit: Number(process.env.DB_CONNECTION_LIMIT ?? 5),
+            queueLimit: 0,
+            enableKeepAlive: true,
+            keepAliveInitialDelay: 0,
+        })
+
+        globalThis.__iumMysqlPool = nextPool
+        return nextPool
     })
 
-    return pool
+    return globalThis.__iumMysqlPoolPromise
 }
 
 export async function callProcedure<T = any>(
@@ -80,7 +92,10 @@ export async function executeQuery<T = any>(
 }
 
 export async function closePool(): Promise<void> {
-    if (!pool) return
-    await pool.end()
-    pool = null
+    const currentPool = globalThis.__iumMysqlPool
+    if (!currentPool) return
+
+    globalThis.__iumMysqlPool = null
+    globalThis.__iumMysqlPoolPromise = null
+    await currentPool.end()
 }

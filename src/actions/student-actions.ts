@@ -16,6 +16,7 @@ import type {
     StudentStatus,
     StudentUpsertInput,
 } from "@/types/student"
+import type { StudentTimelineEvent, StudentTimelineKind } from "@/types/student-timeline"
 
 type SessionCtx =
     | ServerActionResult<never>
@@ -89,8 +90,12 @@ function mapRow(r: Record<string, unknown>): StudentRow {
         gender: (toStrOrNull(r.gender) as StudentGender | null) ?? null,
         school: toStrOrNull(r.school),
         grade: toStrOrNull(r.grade),
+        admissionRouteCode: toStrOrNull(r.admissionRouteCode ?? r.admission_route_code),
         phone: toStrOrNull(r.phone),
         parentPhone: toStrOrNull(r.parentPhone ?? r.parent_phone),
+        photoUrl: toStrOrNull(r.photoUrl ?? r.photo_url),
+        interestTags: toStrOrNull(r.interestTags ?? r.interest_tags),
+        currentClassNames: toStrOrNull(r.currentClassNames ?? r.current_class_names),
         familyGroup: toIntOrNull(r.familyGroup ?? r.family_group),
         status: String(r.status ?? "ACTIVE") as StudentStatus,
         enrolledAt: toDateStrOrNull(r.enrolledAt ?? r.enrolled_at),
@@ -231,11 +236,14 @@ export async function createStudent(
             input.gender ?? null,
             toStrOrNull(input.school),
             toStrOrNull(input.grade),
+            toStrOrNull(input.admissionRouteCode),
             toStrOrNull(input.phone),
             toStrOrNull(input.parentPhone),
             toStrOrNull(input.allergy),
             toStrOrNull(input.personality),
             toStrOrNull(input.memo),
+            toStrOrNull(input.photoUrl),
+            toStrOrNull(input.interestTags),
             toDateStrOrNull(input.enrolledAt),
         )
         const id = toInt(rows?.[0]?.id ?? rows?.[0]?.f0)
@@ -278,11 +286,14 @@ export async function updateStudent(
             input.gender ?? null,
             toStrOrNull(input.school),
             toStrOrNull(input.grade),
+            toStrOrNull(input.admissionRouteCode),
             toStrOrNull(input.phone),
             toStrOrNull(input.parentPhone),
             toStrOrNull(input.allergy),
             toStrOrNull(input.personality),
             toStrOrNull(input.memo),
+            toStrOrNull(input.photoUrl),
+            toStrOrNull(input.interestTags),
             toDateStrOrNull(input.enrolledAt),
         )
         return { success: true }
@@ -455,5 +466,75 @@ export async function unlinkSibling(studentId: number): Promise<ServerActionResu
     } catch (e) {
         console.error("unlinkSibling:", e)
         return { success: false, error: "형제 관계 해제에 실패했습니다." }
+    }
+}
+
+export async function patchStudentMeta(
+    studentId: number,
+    input: { photoUrl: string | null; interestTags: string | null },
+): Promise<ServerActionResult> {
+    const gate = await requireAdmin()
+    if (!("userId" in gate)) return gate
+
+    const cur = await getStudentDetail(studentId)
+    if (!cur.success) return cur
+    if (
+        !isSystemAdmin(gate.role) &&
+        gate.userAcademyId != null &&
+        cur.data!.academyId !== gate.userAcademyId
+    ) {
+        return { success: false, error: "수정 권한이 없습니다." }
+    }
+
+    try {
+        await callProcedure<Record<string, unknown>>(
+            "sp_ium_student_patch_meta",
+            studentId,
+            input.photoUrl ?? "",
+            input.interestTags ?? "",
+        )
+        return { success: true }
+    } catch (e) {
+        console.error("patchStudentMeta:", e)
+        return { success: false, error: "프로필 요약 정보를 저장하지 못했습니다." }
+    }
+}
+
+function mapTimelineRow(r: Record<string, unknown>): StudentTimelineEvent {
+    return {
+        kind: String(r.kind ?? "CONSULT") as StudentTimelineKind,
+        evtAt: String(r.evtAt ?? r.evt_at ?? ""),
+        title: String(r.title ?? ""),
+        subtitle: toStrOrNull(r.subtitle),
+        bodyText: toStrOrNull(r.bodyText ?? r.body_text),
+        refId: toInt(r.refId ?? r.ref_id),
+    }
+}
+
+export async function listStudentTimeline(
+    studentId: number,
+): Promise<ServerActionResult<StudentTimelineEvent[]>> {
+    const s = await requireSession()
+    if (!("userId" in s)) return s
+
+    const cur = await getStudentDetail(studentId)
+    if (!cur.success) return cur
+    if (
+        !isSystemAdmin(s.role) &&
+        s.userAcademyId != null &&
+        cur.data!.academyId !== s.userAcademyId
+    ) {
+        return { success: false, error: "열람 권한이 없습니다." }
+    }
+
+    try {
+        const rows = await callProcedure<Record<string, unknown>>(
+            "sp_ium_student_timeline",
+            studentId,
+        )
+        return { success: true, data: rows.map(mapTimelineRow) }
+    } catch (e) {
+        console.error("listStudentTimeline:", e)
+        return { success: false, error: "타임라인을 불러올 수 없습니다." }
     }
 }

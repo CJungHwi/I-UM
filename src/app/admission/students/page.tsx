@@ -4,6 +4,7 @@ import { Metadata } from "next"
 import { auth } from "@/auth"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { listIumAcademiesForRegister } from "@/actions/ium-user-actions"
+import { listIumCodesByType } from "@/actions/ium-code-actions"
 import { StudentsPageClient } from "./components/students-page-client"
 
 export const metadata: Metadata = {
@@ -20,6 +21,14 @@ export default async function StudentsPage() {
     const academiesRes = await listIumAcademiesForRegister()
     const academies = academiesRes.success && academiesRes.data ? academiesRes.data : []
 
+    const [gradesRes, routesRes] = await Promise.all([
+        listIumCodesByType("STUDENT_GRADE"),
+        listIumCodesByType("ADMISSION_ROUTE"),
+    ])
+    const gradeCodes = gradesRes.success && gradesRes.data ? gradesRes.data : []
+    const admissionRouteCodes =
+        routesRes.success && routesRes.data ? routesRes.data : []
+
     const isAdmin = session.user.role === "SYSTEM_ADMIN" || session.user.role === "ACADEMY_ADMIN"
     const userAcademyId =
         session.user.academyId != null && session.user.academyId > 0
@@ -30,6 +39,8 @@ export default async function StudentsPage() {
         <TooltipProvider>
             <StudentsPageClient
                 academies={academies}
+                gradeCodes={gradeCodes}
+                admissionRouteCodes={admissionRouteCodes}
                 isAdmin={isAdmin}
                 userAcademyId={userAcademyId}
             />

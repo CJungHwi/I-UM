@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { IumAcademyOption } from "@/types/ium-user"
+import type { IumCodeRow } from "@/types/ium-code"
 import type {
     StudentDetail,
     StudentGender,
@@ -34,6 +35,8 @@ interface StudentFormDialogProps {
     mode: "create" | "edit"
     initial: StudentDetail | null
     academies: IumAcademyOption[]
+    gradeCodes: IumCodeRow[]
+    admissionRouteCodes: IumCodeRow[]
     isAdmin: boolean
     userAcademyId: number | null
     onOpenChange: (open: boolean) => void
@@ -44,6 +47,8 @@ interface FormState extends StudentUpsertInput {
     academyId: number | null
 }
 
+const SELECT_EMPTY = "__none__"
+
 const INIT_FORM: FormState = {
     academyId: null,
     name: "",
@@ -51,11 +56,14 @@ const INIT_FORM: FormState = {
     gender: null,
     school: "",
     grade: "",
+    admissionRouteCode: "",
     phone: "",
     parentPhone: "",
     allergy: "",
     personality: "",
     memo: "",
+    photoUrl: "",
+    interestTags: "",
     enrolledAt: null,
 }
 
@@ -64,6 +72,8 @@ export function StudentFormDialog({
     mode,
     initial,
     academies,
+    gradeCodes,
+    admissionRouteCodes,
     isAdmin,
     userAcademyId,
     onOpenChange,
@@ -82,11 +92,14 @@ export function StudentFormDialog({
                 gender: initial.gender,
                 school: initial.school ?? "",
                 grade: initial.grade ?? "",
+                admissionRouteCode: initial.admissionRouteCode ?? "",
                 phone: initial.phone ?? "",
                 parentPhone: initial.parentPhone ?? "",
                 allergy: initial.allergy ?? "",
                 personality: initial.personality ?? "",
                 memo: initial.memo ?? "",
+                photoUrl: initial.photoUrl ?? "",
+                interestTags: initial.interestTags ?? "",
                 enrolledAt: initial.enrolledAt,
             })
         } else {
@@ -117,11 +130,14 @@ export function StudentFormDialog({
             gender: form.gender,
             school: form.school?.trim() || null,
             grade: form.grade?.trim() || null,
+            admissionRouteCode: form.admissionRouteCode?.trim() || null,
             phone: form.phone?.trim() || null,
             parentPhone: form.parentPhone?.trim() || null,
             allergy: form.allergy?.trim() || null,
             personality: form.personality?.trim() || null,
             memo: form.memo?.trim() || null,
+            photoUrl: form.photoUrl?.trim() || null,
+            interestTags: form.interestTags?.trim() || null,
             enrolledAt: form.enrolledAt || null,
         }
 
@@ -254,12 +270,53 @@ export function StudentFormDialog({
 
                         <div className="flex flex-col gap-1">
                             <Label className="text-[11px]">학년</Label>
-                            <Input
-                                className="h-9 text-xs bg-card"
-                                placeholder="예: 중2, 고1"
-                                value={form.grade ?? ""}
-                                onChange={(e) => update("grade", e.target.value)}
-                            />
+                            <Select
+                                value={form.grade ? form.grade : SELECT_EMPTY}
+                                onValueChange={(v) =>
+                                    update("grade", v === SELECT_EMPTY ? "" : v)
+                                }
+                            >
+                                <SelectTrigger className="h-9 text-xs bg-card">
+                                    <SelectValue placeholder="선택" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={SELECT_EMPTY}>선택 안 함</SelectItem>
+                                    {gradeCodes.map((c) => (
+                                        <SelectItem key={c.code} value={c.code}>
+                                            {c.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                            <Label className="text-[11px]">접수 경로</Label>
+                            <Select
+                                value={
+                                    form.admissionRouteCode
+                                        ? form.admissionRouteCode
+                                        : SELECT_EMPTY
+                                }
+                                onValueChange={(v) =>
+                                    update(
+                                        "admissionRouteCode",
+                                        v === SELECT_EMPTY ? "" : v,
+                                    )
+                                }
+                            >
+                                <SelectTrigger className="h-9 text-xs bg-card">
+                                    <SelectValue placeholder="선택" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={SELECT_EMPTY}>선택 안 함</SelectItem>
+                                    {admissionRouteCodes.map((c) => (
+                                        <SelectItem key={c.code} value={c.code}>
+                                            {c.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         <div className="flex flex-col gap-1">
@@ -283,6 +340,26 @@ export function StudentFormDialog({
                                 }
                             />
                         </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                        <Label className="text-[11px]">프로필 사진 URL</Label>
+                        <Input
+                            className="h-9 text-xs bg-card"
+                            placeholder="https://…"
+                            value={form.photoUrl ?? ""}
+                            onChange={(e) => update("photoUrl", e.target.value)}
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                        <Label className="text-[11px]">관심 키워드 (콤마로 구분)</Label>
+                        <Input
+                            className="h-9 text-xs bg-card"
+                            placeholder="#낯가림,#수학강점,셔틀주의"
+                            value={form.interestTags ?? ""}
+                            onChange={(e) => update("interestTags", e.target.value)}
+                        />
                     </div>
 
                     <div className="flex flex-col gap-1">

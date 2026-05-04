@@ -16,10 +16,20 @@ CREATE TABLE IF NOT EXISTS ium_consultation (
     student_name       VARCHAR(100) NOT NULL COMMENT '상담 대상 학생명',
     grade              VARCHAR(20)  NULL COMMENT '예: 중2, 고1',
     subject            VARCHAR(50)  NULL COMMENT '희망 과목',
-    prefer_schedule    VARCHAR(200) NULL COMMENT '희망 일정(자유 입력)',
+    prefer_schedule    VARCHAR(200) NULL COMMENT '희망 수업 요일·시간대(자유 입력)',
     memo               TEXT         NULL COMMENT '상담 본문/요청사항',
+    channel_detail     VARCHAR(120)  NULL COMMENT '유입 경로 상세(당근·인스타 등)',
+    consult_school     VARCHAR(100)  NULL COMMENT '상담 시 학교',
+    prior_academy_note TEXT         NULL COMMENT '기존 학원 수강 이력',
+    withdraw_reason    VARCHAR(200) NULL COMMENT '퇴원 사유',
+    subject_interest_note VARCHAR(600) NULL COMMENT '과목별 흥미도',
+    parent_education_view VARCHAR(600) NULL COMMENT '학부모 교육관',
+    child_personality_note VARCHAR(600) NULL COMMENT '아이 성격 메모',
+    special_requests   TEXT         NULL COMMENT '특이 요청사항',
+    not_registered_reason VARCHAR(200) NULL COMMENT '미등록 사유',
+    next_contact_at    DATETIME     NULL COMMENT '다음 연락 예정',
     status             VARCHAR(20)  NOT NULL DEFAULT 'NEW'
-                       COMMENT 'NEW/IN_PROGRESS/WAIT/CONVERTED/LOST',
+                       COMMENT 'ium_code CONSULT_STATUS.code (NEW/IN_PROGRESS/WAIT/CONVERTED/LOST)',
     counselor_user_id  BIGINT       NULL COMMENT '담당 상담자(ium_users.id)',
     converted_student_id BIGINT     NULL COMMENT 'CONVERTED 시 생성된 학생 FK',
     requested_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -90,6 +100,16 @@ BEGIN
         c.grade,
         c.subject,
         c.prefer_schedule AS preferSchedule,
+        c.channel_detail AS channelDetail,
+        c.consult_school AS consultSchool,
+        c.prior_academy_note AS priorAcademyNote,
+        c.withdraw_reason AS withdrawReason,
+        c.subject_interest_note AS subjectInterestNote,
+        c.parent_education_view AS parentEducationView,
+        c.child_personality_note AS childPersonalityNote,
+        c.special_requests AS specialRequests,
+        c.not_registered_reason AS notRegisteredReason,
+        c.next_contact_at AS nextContactAt,
         c.status,
         c.counselor_user_id AS counselorUserId,
         u.name          AS counselorName,
@@ -131,6 +151,16 @@ BEGIN
         c.grade,
         c.subject,
         c.prefer_schedule AS preferSchedule,
+        c.channel_detail AS channelDetail,
+        c.consult_school AS consultSchool,
+        c.prior_academy_note AS priorAcademyNote,
+        c.withdraw_reason AS withdrawReason,
+        c.subject_interest_note AS subjectInterestNote,
+        c.parent_education_view AS parentEducationView,
+        c.child_personality_note AS childPersonalityNote,
+        c.special_requests AS specialRequests,
+        c.not_registered_reason AS notRegisteredReason,
+        c.next_contact_at AS nextContactAt,
         c.status,
         c.counselor_user_id AS counselorUserId,
         u.name          AS counselorName,
@@ -170,6 +200,16 @@ BEGIN
         c.grade,
         c.subject,
         c.prefer_schedule AS preferSchedule,
+        c.channel_detail AS channelDetail,
+        c.consult_school AS consultSchool,
+        c.prior_academy_note AS priorAcademyNote,
+        c.withdraw_reason AS withdrawReason,
+        c.subject_interest_note AS subjectInterestNote,
+        c.parent_education_view AS parentEducationView,
+        c.child_personality_note AS childPersonalityNote,
+        c.special_requests AS specialRequests,
+        c.not_registered_reason AS notRegisteredReason,
+        c.next_contact_at AS nextContactAt,
         c.memo,
         c.status,
         c.counselor_user_id AS counselorUserId,
@@ -196,6 +236,16 @@ CREATE PROCEDURE sp_ium_consult_create(
     IN p_subject         VARCHAR(50),
     IN p_prefer_schedule VARCHAR(200),
     IN p_memo            TEXT,
+    IN p_channel_detail  VARCHAR(120),
+    IN p_consult_school  VARCHAR(100),
+    IN p_prior_academy_note TEXT,
+    IN p_withdraw_reason VARCHAR(200),
+    IN p_subject_interest_note VARCHAR(600),
+    IN p_parent_education_view VARCHAR(600),
+    IN p_child_personality_note VARCHAR(600),
+    IN p_special_requests TEXT,
+    IN p_not_registered_reason VARCHAR(200),
+    IN p_next_contact_at DATETIME,
     IN p_counselor_user_id BIGINT,
     IN p_requested_at    DATETIME,
     IN p_user_id         BIGINT
@@ -223,6 +273,9 @@ BEGIN
     INSERT INTO ium_consultation
         (academy_id, source, contact_name, contact_phone,
          student_name, grade, subject, prefer_schedule, memo,
+         channel_detail, consult_school, prior_academy_note, withdraw_reason,
+         subject_interest_note, parent_education_view, child_personality_note,
+         special_requests, not_registered_reason, next_contact_at,
          status, counselor_user_id, requested_at)
     VALUES
         (p_academy_id,
@@ -234,6 +287,16 @@ BEGIN
          NULLIF(TRIM(p_subject), ''),
          NULLIF(TRIM(p_prefer_schedule), ''),
          NULLIF(p_memo, ''),
+         NULLIF(TRIM(p_channel_detail), ''),
+         NULLIF(TRIM(p_consult_school), ''),
+         NULLIF(p_prior_academy_note, ''),
+         NULLIF(TRIM(p_withdraw_reason), ''),
+         NULLIF(TRIM(p_subject_interest_note), ''),
+         NULLIF(TRIM(p_parent_education_view), ''),
+         NULLIF(TRIM(p_child_personality_note), ''),
+         NULLIF(p_special_requests, ''),
+         NULLIF(TRIM(p_not_registered_reason), ''),
+         p_next_contact_at,
          'NEW',
          NULLIF(p_counselor_user_id, 0),
          COALESCE(p_requested_at, CURRENT_TIMESTAMP));
@@ -259,6 +322,16 @@ CREATE PROCEDURE sp_ium_consult_update(
     IN p_subject         VARCHAR(50),
     IN p_prefer_schedule VARCHAR(200),
     IN p_memo            TEXT,
+    IN p_channel_detail  VARCHAR(120),
+    IN p_consult_school  VARCHAR(100),
+    IN p_prior_academy_note TEXT,
+    IN p_withdraw_reason VARCHAR(200),
+    IN p_subject_interest_note VARCHAR(600),
+    IN p_parent_education_view VARCHAR(600),
+    IN p_child_personality_note VARCHAR(600),
+    IN p_special_requests TEXT,
+    IN p_not_registered_reason VARCHAR(200),
+    IN p_next_contact_at DATETIME,
     IN p_counselor_user_id BIGINT,
     IN p_requested_at    DATETIME
 )
@@ -276,6 +349,16 @@ BEGIN
            subject            = NULLIF(TRIM(p_subject), ''),
            prefer_schedule    = NULLIF(TRIM(p_prefer_schedule), ''),
            memo               = NULLIF(p_memo, ''),
+           channel_detail     = NULLIF(TRIM(p_channel_detail), ''),
+           consult_school     = NULLIF(TRIM(p_consult_school), ''),
+           prior_academy_note = NULLIF(p_prior_academy_note, ''),
+           withdraw_reason    = NULLIF(TRIM(p_withdraw_reason), ''),
+           subject_interest_note = NULLIF(TRIM(p_subject_interest_note), ''),
+           parent_education_view = NULLIF(TRIM(p_parent_education_view), ''),
+           child_personality_note = NULLIF(TRIM(p_child_personality_note), ''),
+           special_requests   = NULLIF(p_special_requests, ''),
+           not_registered_reason = NULLIF(TRIM(p_not_registered_reason), ''),
+           next_contact_at    = p_next_contact_at,
            counselor_user_id  = NULLIF(p_counselor_user_id, 0),
            requested_at       = COALESCE(p_requested_at, requested_at)
      WHERE id = p_id AND del_yn = 'N';
@@ -379,14 +462,21 @@ BEGIN
     DECLARE v_contact_phone VARCHAR(30) DEFAULT NULL;
     DECLARE v_contact_name VARCHAR(100) DEFAULT NULL;
     DECLARE v_memo TEXT DEFAULT NULL;
+    DECLARE v_consult_school VARCHAR(100) DEFAULT NULL;
+    DECLARE v_child_personality VARCHAR(600) DEFAULT NULL;
+    DECLARE v_special_requests TEXT DEFAULT NULL;
+    DECLARE v_prior_academy TEXT DEFAULT NULL;
+    DECLARE v_personality VARCHAR(500) DEFAULT NULL;
     DECLARE v_prev VARCHAR(20) DEFAULT NULL;
     DECLARE v_existing_student BIGINT DEFAULT NULL;
     DECLARE v_new_student BIGINT DEFAULT 0;
 
     SELECT academy_id, student_name, grade, contact_phone, contact_name, memo, status,
-           converted_student_id
+           converted_student_id,
+           consult_school, child_personality_note, special_requests, prior_academy_note
       INTO v_academy_id, v_student_name, v_grade, v_contact_phone, v_contact_name, v_memo, v_prev,
-           v_existing_student
+           v_existing_student,
+           v_consult_school, v_child_personality, v_special_requests, v_prior_academy
       FROM ium_consultation
      WHERE id = p_id AND del_yn = 'N';
 
@@ -399,13 +489,22 @@ BEGIN
         SELECT v_existing_student AS studentId,
                0 AS created;
     ELSE
+        SET v_personality = LEFT(TRIM(CONCAT_WS(CHAR(10),
+            NULLIF(TRIM(v_child_personality), ''),
+            NULLIF(TRIM(v_special_requests), ''))), 500);
+
         INSERT INTO ium_students
-            (academy_id, name, grade, parent_phone, memo, status, enrolled_at)
+            (academy_id, name, grade, admission_route_code, school, parent_phone, personality, memo, status, enrolled_at)
         VALUES
             (v_academy_id, v_student_name,
              NULLIF(v_grade, ''),
+             NULL,
+             NULLIF(TRIM(v_consult_school), ''),
              NULLIF(v_contact_phone, ''),
-             NULLIF(v_memo, ''),
+             NULLIF(v_personality, ''),
+             LEFT(TRIM(CONCAT_WS(CHAR(10),
+                NULLIF(TRIM(v_prior_academy), ''),
+                NULLIF(v_memo, ''))), 6000),
              'ACTIVE',
              p_enrolled_at);
 

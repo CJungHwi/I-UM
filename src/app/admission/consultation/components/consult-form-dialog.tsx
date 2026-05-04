@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { IumAcademyOption } from "@/types/ium-user"
+import type { IumCodeRow } from "@/types/ium-code"
 import type {
     ConsultDetail,
     ConsultSource,
@@ -33,12 +34,14 @@ import {
     createConsultation,
     updateConsultation,
 } from "@/actions/consultation-actions"
+import { ConsultFormExtendedSection } from "./consult-form-extended-section"
 
 interface ConsultFormDialogProps {
     open: boolean
     mode: "create" | "edit"
     initial: ConsultDetail | null
     academies: IumAcademyOption[]
+    gradeCodes: IumCodeRow[]
     isAdmin: boolean
     userAcademyId: number | null
     onOpenChange: (open: boolean) => void
@@ -58,6 +61,8 @@ const SOURCES: ConsultSource[] = [
     "OTHER",
 ]
 
+const SELECT_GRADE_EMPTY = "__none__"
+
 function nowLocal(): string {
     return dayjs().format("YYYY-MM-DDTHH:mm")
 }
@@ -65,13 +70,23 @@ function nowLocal(): string {
 const INIT_FORM: FormState = {
     academyId: null,
     source: "PHONE",
+    channelDetail: "",
     contactName: "",
     contactPhone: "",
     studentName: "",
     grade: "",
+    consultSchool: "",
     subject: "",
     preferSchedule: "",
     memo: "",
+    priorAcademyNote: "",
+    withdrawReason: "",
+    subjectInterestNote: "",
+    parentEducationView: "",
+    childPersonalityNote: "",
+    specialRequests: "",
+    notRegisteredReason: "",
+    nextContactAt: null,
     counselorUserId: null,
     requestedAt: nowLocal(),
 }
@@ -81,6 +96,7 @@ export function ConsultFormDialog({
     mode,
     initial,
     academies,
+    gradeCodes,
     isAdmin,
     userAcademyId,
     onOpenChange,
@@ -95,13 +111,23 @@ export function ConsultFormDialog({
             setForm({
                 academyId: initial.academyId,
                 source: initial.source,
+                channelDetail: initial.channelDetail ?? "",
                 contactName: initial.contactName,
                 contactPhone: initial.contactPhone ?? "",
                 studentName: initial.studentName,
                 grade: initial.grade ?? "",
+                consultSchool: initial.consultSchool ?? "",
                 subject: initial.subject ?? "",
                 preferSchedule: initial.preferSchedule ?? "",
                 memo: initial.memo ?? "",
+                priorAcademyNote: initial.priorAcademyNote ?? "",
+                withdrawReason: initial.withdrawReason ?? "",
+                subjectInterestNote: initial.subjectInterestNote ?? "",
+                parentEducationView: initial.parentEducationView ?? "",
+                childPersonalityNote: initial.childPersonalityNote ?? "",
+                specialRequests: initial.specialRequests ?? "",
+                notRegisteredReason: initial.notRegisteredReason ?? "",
+                nextContactAt: initial.nextContactAt,
                 counselorUserId: initial.counselorUserId,
                 requestedAt: initial.requestedAt
                     ? dayjs(initial.requestedAt).format("YYYY-MM-DDTHH:mm")
@@ -124,6 +150,13 @@ export function ConsultFormDialog({
         setForm((prev) => ({ ...prev, [key]: value }))
     }
 
+    const legacyGradeOption =
+        form.grade &&
+        !gradeCodes.some((c) => c.code === form.grade) &&
+        form.grade !== SELECT_GRADE_EMPTY
+            ? form.grade
+            : null
+
     const handleSubmit = async () => {
         if (!form.studentName.trim()) {
             toast.warning("학생 이름을 입력하세요.")
@@ -134,15 +167,30 @@ export function ConsultFormDialog({
             return
         }
 
+        const t = (v: string | null | undefined) => {
+            const s = (v ?? "").trim()
+            return s === "" ? null : s
+        }
+
         const normalized: ConsultUpdateInput = {
             source: form.source || "PHONE",
+            channelDetail: t(form.channelDetail),
             contactName: form.contactName.trim(),
             contactPhone: form.contactPhone?.trim() || null,
             studentName: form.studentName.trim(),
-            grade: form.grade?.trim() || null,
-            subject: form.subject?.trim() || null,
-            preferSchedule: form.preferSchedule?.trim() || null,
-            memo: form.memo?.trim() || null,
+            grade: t(form.grade),
+            consultSchool: t(form.consultSchool),
+            subject: t(form.subject),
+            preferSchedule: t(form.preferSchedule),
+            memo: t(form.memo),
+            priorAcademyNote: t(form.priorAcademyNote),
+            withdrawReason: t(form.withdrawReason),
+            subjectInterestNote: t(form.subjectInterestNote),
+            parentEducationView: t(form.parentEducationView),
+            childPersonalityNote: t(form.childPersonalityNote),
+            specialRequests: t(form.specialRequests),
+            notRegisteredReason: t(form.notRegisteredReason),
+            nextContactAt: form.nextContactAt?.trim() || null,
             counselorUserId: form.counselorUserId,
             requestedAt: form.requestedAt,
         }
@@ -283,12 +331,29 @@ export function ConsultFormDialog({
 
                         <div className="flex flex-col gap-1">
                             <Label className="text-[11px]">학년</Label>
-                            <Input
-                                className="h-9 text-xs bg-card"
-                                placeholder="예: 중2, 고1"
-                                value={form.grade ?? ""}
-                                onChange={(e) => update("grade", e.target.value)}
-                            />
+                            <Select
+                                value={form.grade ? form.grade : SELECT_GRADE_EMPTY}
+                                onValueChange={(v) =>
+                                    update("grade", v === SELECT_GRADE_EMPTY ? "" : v)
+                                }
+                            >
+                                <SelectTrigger className="h-9 text-xs bg-card">
+                                    <SelectValue placeholder="선택" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={SELECT_GRADE_EMPTY}>선택 안 함</SelectItem>
+                                    {gradeCodes.map((c) => (
+                                        <SelectItem key={c.code} value={c.code}>
+                                            {c.label}
+                                        </SelectItem>
+                                    ))}
+                                    {legacyGradeOption ? (
+                                        <SelectItem value={legacyGradeOption}>
+                                            {legacyGradeOption} (기존 입력값)
+                                        </SelectItem>
+                                    ) : null}
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         <div className="flex flex-col gap-1">
@@ -302,10 +367,15 @@ export function ConsultFormDialog({
                         </div>
 
                         <div className="flex flex-col gap-1 col-span-2">
-                            <Label className="text-[11px]">희망 일정</Label>
+                            <Label className="text-[11px]">
+                                희망 수업 요일·시간{" "}
+                                <span className="font-normal text-muted-foreground">
+                                    (수강 가능한 요일·시간대)
+                                </span>
+                            </Label>
                             <Input
                                 className="h-9 text-xs bg-card"
-                                placeholder="예: 평일 오후 5시 이후, 토요일 오전"
+                                placeholder="예: 월·목 저녁 7시 이후, 토요일 오전"
                                 value={form.preferSchedule ?? ""}
                                 onChange={(e) =>
                                     update("preferSchedule", e.target.value)
@@ -313,6 +383,13 @@ export function ConsultFormDialog({
                             />
                         </div>
                     </div>
+
+                    <ConsultFormExtendedSection
+                        form={form}
+                        onChange={(key, value) =>
+                            update(key as keyof FormState, value as FormState[keyof FormState])
+                        }
+                    />
 
                     <div className="flex flex-col gap-1">
                         <Label className="text-[11px]">상담 내용</Label>

@@ -9,9 +9,15 @@ export interface StudentRow {
     birthdate: string | null
     gender: StudentGender | null
     school: string | null
+    /** `ium_code` STUDENT_GRADE (예: MS2) */
     grade: string | null
+    /** `ium_code` ADMISSION_ROUTE */
+    admissionRouteCode: string | null
     phone: string | null
     parentPhone: string | null
+    photoUrl: string | null
+    interestTags: string | null
+    currentClassNames: string | null
     familyGroup: number | null
     status: StudentStatus
     enrolledAt: string | null
@@ -53,11 +59,14 @@ export interface StudentUpsertInput {
     gender: StudentGender | null
     school: string | null
     grade: string | null
+    admissionRouteCode: string | null
     phone: string | null
     parentPhone: string | null
     allergy: string | null
     personality: string | null
     memo: string | null
+    photoUrl: string | null
+    interestTags: string | null
     enrolledAt: string | null
 }
 

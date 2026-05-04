@@ -132,13 +132,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                                 console.error(`System admin selected invalid academy: ${loginId}`)
                                 return null
                             }
-                        } else if (academyId != null && academyId > 0) {
-                            const sel = Number(academyChoice)
-                            if (!Number.isFinite(sel) || sel !== academyId) {
-                                console.error(`Academy mismatch for ium user: ${loginId}`)
-                                return null
-                            }
-                        } else {
+                        } else if (academyId == null || academyId <= 0) {
                             console.error(`Invalid academy state for ium user: ${loginId}`)
                             return null
                         }
